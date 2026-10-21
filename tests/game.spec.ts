@@ -132,8 +132,18 @@ test('outside-goal shots miss and rapid clicks stay gated until the next round',
   await expect(page.locator('.sr-only')).toContainText('Miss!');
   await ready(page);
   await aimAndShoot(page, 0.08, 0.1);
-  await expect(page.locator('.phase-indicator')).not.toHaveText('YOUR SHOT.');
-  for (let i = 0; i < 4; i++) await aimAndShoot(page, 0.92, 0.85);
+  await expect(page.locator('.phase-indicator')).toHaveText('HERE WE GO.');
+  // Reusing the full aiming helper would scroll and perform actionability waits
+  // for each click. On software rendering those can span an entire round.
+  const canvasBox = await page.locator('.game-stage canvas').boundingBox();
+  if (!canvasBox) throw new Error('Missing visible game canvas');
+  const burstX = canvasBox.x + ((226 + 0.92 * 508) / 960) * canvasBox.width;
+  const burstY = canvasBox.y + ((154 + 0.85 * 202) / 600) * canvasBox.height;
+  if (await page.evaluate(() => navigator.maxTouchPoints > 0)) {
+    for (let i = 0; i < 4; i++) await page.touchscreen.tap(burstX, burstY);
+  } else {
+    await page.mouse.click(burstX, burstY, { clickCount: 4, delay: 5 });
+  }
   await expect.poll(() => score(page)).toEqual([2, 0, 1, 1, 1]);
   await ready(page);
   await aimAndShoot(page, 0.42, 0.7);
