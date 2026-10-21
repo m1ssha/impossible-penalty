@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { GameAudio } from './core/audio';
+import { translateRemark } from './core/i18n';
+import { uiText, phaseKeys, type AnnouncementKey } from './ui/localization';
 import { emptyStats, recordShot } from './core/model';
 import type { Phase } from './core/model';
 import { loadData, saveData } from './core/storage';
@@ -9,12 +11,6 @@ import { config } from './config';
 import { StatsDialog } from './ui/StatsDialog';
 
 type GameHandle = ReturnType<typeof createGame>;
-const phaseLabels: Record<Phase, string> = {
-  ready: 'YOUR SHOT.',
-  runup: 'HERE WE GO.',
-  flight: 'HOLD YOUR BREATH.',
-  result: 'ONE MORE?',
-};
 
 function SoundIcon({ enabled }: { enabled: boolean }) {
   return (
@@ -41,7 +37,8 @@ function SoundIcon({ enabled }: { enabled: boolean }) {
 
 export default function App() {
   const [data, setData] = useState(loadData);
-  const [announcement, setAnnouncement] = useState('');
+  const [announcement, setAnnouncement] = useState<AnnouncementKey | null>(null);
+  const t = uiText[data.language];
   const [phase, setPhase] = useState<Phase>('ready');
   const [remark, setRemark] = useState('GO ON. PICK A CORNER.');
   const [statsOpen, setStatsOpen] = useState(false);
@@ -63,19 +60,21 @@ export default function App() {
       gameRef.current = createGame(stageRef.current, {
         onPhase: (nextPhase) => {
           setPhase(nextPhase);
-          if (nextPhase === 'runup') setAnnouncement('');
+          if (nextPhase === 'runup') setAnnouncement(null);
         },
         onShot: (shot) => {
           setAnnouncement(
-            shot.outcome === 'miss'
-              ? 'Miss! Your shot went outside the goal. Try aiming inside the net.'
-              : shot.surprise === 'fan'
-                ? 'Goal! A fan invaded the pitch and scored for you.'
-                : shot.surprise === 'giant'
-                  ? 'Saved! The keeper grew gigantic to stop your shot.'
-                  : shot.outcome === 'goal'
-                    ? 'Goal! You beat the keeper.'
-                    : 'Saved by the keeper. Try again.',
+            shot.surprise === 'rocket'
+              ? 'announceRocket'
+              : shot.outcome === 'miss'
+                ? 'announceMiss'
+                : shot.surprise === 'fan'
+                  ? 'announceFan'
+                  : shot.surprise === 'giant'
+                    ? 'announceGiant'
+                    : shot.outcome === 'goal'
+                      ? 'announceGoal'
+                      : 'announceSave',
           );
           setData((previous) => ({ ...previous, stats: recordShot(previous.stats, shot.outcome) }));
         },
@@ -100,6 +99,9 @@ export default function App() {
     soundRef.current = data.sound;
     audioRef.current?.setEnabled(data.sound);
     gameRef.current?.setReducedMotion(data.reducedMotion);
+    gameRef.current?.setLanguage(data.language);
+    document.documentElement.lang = data.language;
+    document.title = uiText[data.language].documentTitle;
     const available = saveData(data);
     let active = true;
     queueMicrotask(() => {
@@ -139,8 +141,8 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {announcement}
+      <p className="shot-announcement sr-only" aria-live="polite" aria-atomic="true">
+        {announcement ? t[announcement] : ''}
       </p>
       <header className="masthead">
         <a
@@ -148,35 +150,48 @@ export default function App() {
           href={config.repositoryUrl}
           target="_blank"
           rel="noreferrer"
-          aria-label="Impossible Penalty on GitHub"
+          aria-label={t.githubLabel}
         >
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
             <path fill="currentColor" d="M6 1h10v3h3v3h2v9h-3v3h-3v2H6v-3H3v-3H1V7h3V4h2Z" />
             <path fill="#0b1418" d="m9 7 5-1 3 5-4 4-5-3ZM4 9h3v5H4Zm11 7h3v3h-5v-3ZM7 2h6v3H7Z" />
           </svg>
-          <span>THE ONE-MORE-TRY CLUB</span>
+          <span>{t.wordmark}</span>
         </a>
-        <nav className="utility-nav" aria-label="Game settings">
+        <nav className="utility-nav" aria-label={t.settings}>
+          <button
+            className="utility-button language-button"
+            aria-label={t.switchLanguage}
+            onClick={() =>
+              setData((previous) => ({
+                ...previous,
+                language: previous.language === 'en' ? 'ru' : 'en',
+              }))
+            }
+          >
+            {t.languageCode}
+          </button>
           <button
             className={`utility-button sound-button ${data.sound ? 'is-active' : ''}`}
             onClick={toggleSound}
             aria-pressed={data.sound}
-            aria-label={data.sound ? 'Mute sound' : 'Enable sound'}
+            aria-label={data.sound ? t.mute : t.enableSound}
           >
             <SoundIcon enabled={data.sound} />
             <span>
-              SOUND <b>{data.sound ? 'ON' : 'OFF'}</b>
+              {t.sound} <b>{data.sound ? t.on : t.off}</b>
             </span>
           </button>
           <button
             className="utility-button"
+            aria-label={t.statsLabel}
             onClick={() => setStatsOpen(true)}
             aria-haspopup="dialog"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
               <path d="M1 9h3v6H1Zm5-5h3v11H6Zm5-3h3v14h-3Z" />
             </svg>
-            <span>STATS</span>
+            <span>{t.stats}</span>
           </button>
         </nav>
       </header>
@@ -184,7 +199,7 @@ export default function App() {
       <section className="hero" aria-labelledby="game-title">
         <div className="hero-copy">
           <div className="eyebrow match-label">
-            <span className="live-dot" /> NIGHT MATCH / NO MERCY
+            <span className="live-dot" /> {t.nightMatch}
           </div>
           <h1 id="game-title">
             IMPOSSIBLE
@@ -192,15 +207,15 @@ export default function App() {
             <span>PENALTY</span>
             <span className="title-period">.</span>
           </h1>
-          <p>One goal. One keeper. A deeply unfair advantage.</p>
+          <p>{t.tagline}</p>
         </div>
-        <div className="odds-note" aria-label="Keeper saves 90 percent of shots">
+        <div className="odds-note" aria-label={t.oddsLabel}>
           <span className="odds-number">
             90<span>%</span>
           </span>
           <div>
-            <span>HE SAVES.</span>
-            <span>YOU KEEP TRYING.</span>
+            <span>{t.heSaves}</span>
+            <span>{t.keepTrying}</span>
           </div>
           <svg
             viewBox="0 0 80 40"
@@ -214,20 +229,20 @@ export default function App() {
         </div>
       </section>
 
-      <section className="match-section" aria-label="Penalty game">
+      <section className="match-section" aria-label={t.penaltyGame}>
         <div className="pitch-topline">
           <span>
-            <span className="square-dot" /> LIVE FROM THE PENALTY SPOT
+            <span className="square-dot" /> {t.liveSpot}
           </span>
           <span className="match-number">
-            ATTEMPT {String(data.stats.shots + 1).padStart(3, '0')}
+            {t.attempt} {String(data.stats.shots + 1).padStart(3, '0')}
           </span>
         </div>
         <div
           className={`stadium-shell ${phase !== 'ready' ? 'is-playing' : ''}`}
           tabIndex={statsOpen ? -1 : 0}
           role="group"
-          aria-label="Football pitch. Aim anywhere with arrow keys, then Enter or Space to shoot. Inside the net can score; outside is a miss."
+          aria-label={t.pitchLabel}
           aria-describedby="game-controls"
           onKeyDown={onGameKey}
           onPointerDown={(event) => {
@@ -240,10 +255,10 @@ export default function App() {
           <div className="game-stage" ref={stageRef} aria-hidden="true" />
           {gameError && (
             <div className="game-error">
-              <strong>The stadium could not open.</strong>
-              <span>Please reload the page to try again.</span>
+              <strong>{t.stadiumError}</strong>
+              <span>{t.reloadHelp}</span>
               <button className="primary-button" onClick={() => window.location.reload()}>
-                RELOAD GAME
+                {t.reload}
               </button>
             </div>
           )}
@@ -254,39 +269,41 @@ export default function App() {
         <div className="keeper-strip">
           <div className="keeper-identity">
             <span className="keeper-dot" />
-            <span>THE KEEPER</span>
+            <span>{t.keeper}</span>
             <span className="keeper-number">01</span>
           </div>
-          <p className="keeper-remark" aria-live="polite" aria-atomic="true">
-            “{remark}”
+          <p className="keeper-remark sr-only" aria-live="polite" aria-atomic="true">
+            “{translateRemark(remark, data.language)}”
           </p>
+          <p className="keeper-aside">{t.keeperAside}</p>
           <span className={`phase-indicator ${phase === 'ready' ? 'ready' : ''}`} role="status">
-            {phaseLabels[phase]}
+            {t[phaseKeys[phase]]}
           </span>
         </div>
-        <dl className="scoreboard" aria-label="Your game statistics">
+        <dl className="scoreboard" aria-label={t.statsSummary}>
           <div>
-            <dt>SHOTS</dt>
+            <dt>{t.shots}</dt>
             <dd>{String(data.stats.shots).padStart(2, '0')}</dd>
           </div>
           <div className="goals-stat">
-            <dt>GOALS</dt>
+            <dt>{t.goals}</dt>
             <dd>
               {String(data.stats.goals).padStart(2, '0')}
-              <span className="stat-tag">THE RARE ONES</span>
+              <span className="stat-tag">{t.rareGoals}</span>
             </dd>
           </div>
           <div>
-            <dt>SAVES</dt>
+            <dt>{t.saves}</dt>
             <dd>{String(data.stats.saves).padStart(2, '0')}</dd>
           </div>
           <div className="misses-stat">
-            <dt>MISSES</dt>
+            <dt>{t.misses}</dt>
             <dd>{String(data.stats.misses).padStart(2, '0')}</dd>
           </div>
           <div>
-            <dt aria-label="Save streak">
-              <span className="streak-prefix">SAVE </span>STREAK
+            <dt aria-label={t.streakLabel}>
+              <span className="streak-prefix">{t.savePrefix}</span>
+              {t.streak}
             </dt>
             <dd>
               {String(data.stats.streak).padStart(2, '0')}
@@ -312,28 +329,28 @@ export default function App() {
             <path d="M10 1v5m0 8v5M1 10h5m8 0h5" />
             <circle cx="10" cy="10" r="5" />
           </svg>
-          <strong>AIM. SHOOT. REPEAT.</strong>
-          <span>Click or tap anywhere on the field. Outside the net? That’s a miss.</span>
+          <strong>{t.controlTitle}</strong>
+          <span>{t.instructions}</span>
         </p>
         <p className="keyboard-hint">
           <kbd>↑</kbd>
           <kbd>↓</kbd>
           <kbd>←</kbd>
           <kbd>→</kbd>
-          <span>aim</span>
+          <span>{t.aim}</span>
           <kbd>ENTER</kbd>
-          <span>shoot</span>
+          <span>{t.shoot}</span>
         </p>
       </div>
       {!storageAvailable && (
         <p className="storage-notice" role="status">
-          Your browser has disabled storage. Your record stays available until you close this page.
+          {t.storageNotice}
         </p>
       )}
       <footer className="page-footer">
-        <span>A GAME OF VERY SMALL ODDS & VERY BIG GLOVES.</span>
+        <span>{t.footer}</span>
         <span>
-          MADE BY{' '}
+          {t.madeBy}{' '}
           <a href={config.authorUrl} target="_blank" rel="noreferrer">
             {config.author} <span aria-hidden="true">↗</span>
           </a>
@@ -341,6 +358,7 @@ export default function App() {
       </footer>
       {statsOpen && (
         <StatsDialog
+          language={data.language}
           stats={data.stats}
           reducedMotion={data.reducedMotion}
           onReducedMotion={(value) =>

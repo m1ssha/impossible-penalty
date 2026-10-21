@@ -17,7 +17,7 @@ export interface Shot {
   target: Point;
   outcome: Outcome;
   remark: string;
-  surprise: 'none' | 'giant' | 'fan';
+  surprise: 'none' | 'giant' | 'fan' | 'rocket';
 }
 export function chooseOutcome(random: () => number = Math.random): Exclude<Outcome, 'miss'> {
   const value = random();
@@ -74,11 +74,13 @@ export function planShot(
   // This draw chooses presentation only; it cannot alter the already selected result.
   const cosmetic = outcome === 'miss' ? 1 : random();
   const surprise: Shot['surprise'] =
-    outcome === 'goal' && cosmetic < 0.28
-      ? 'fan'
-      : outcome !== 'goal' && outcome !== 'miss' && cosmetic < 0.18
-        ? 'giant'
-        : 'none';
+    outcome === 'miss' && point.y < 0
+      ? 'rocket'
+      : outcome === 'goal' && cosmetic < 0.28
+        ? 'fan'
+        : outcome !== 'goal' && outcome !== 'miss' && cosmetic < 0.18
+          ? 'giant'
+          : 'none';
   const repeated =
     history.length >= 3 &&
     history
@@ -92,7 +94,12 @@ export function planShot(
   return {
     target: point,
     outcome,
-    remark: surprise === 'fan' ? 'HE IS NOT EVEN ON THE TEAM.' : remark,
+    remark:
+      surprise === 'fan'
+        ? 'HE IS NOT EVEN ON THE TEAM.'
+        : surprise === 'rocket'
+          ? 'AIR DEFENCE: ONE. FOOTBALL: ZERO.'
+          : remark,
     surprise,
   };
 }

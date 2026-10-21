@@ -12,7 +12,12 @@ describe('persistent session', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
   it('roundtrips stats and settings', () => {
-    const value = { stats: recordShot(emptyStats(), 'goal'), sound: true, reducedMotion: true };
+    const value = {
+      stats: recordShot(emptyStats(), 'goal'),
+      sound: true,
+      language: 'en' as const,
+      reducedMotion: true,
+    };
     expect(saveData(value)).toBe(true);
     expect(loadData()).toEqual(value);
   });
@@ -37,7 +42,14 @@ describe('persistent session', () => {
       },
     });
     expect(loadData().stats).toEqual(emptyStats());
-    expect(saveData({ stats: emptyStats(), sound: false, reducedMotion: false })).toBe(false);
+    expect(
+      saveData({
+        stats: emptyStats(),
+        sound: false,
+        language: 'en' as const,
+        reducedMotion: false,
+      }),
+    ).toBe(false);
   });
   it('uses OS reduced motion for a new session', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
@@ -49,6 +61,7 @@ describe('persistent session', () => {
       JSON.stringify({
         stats: { shots: 3, goals: 1, saves: 2, streak: 2, bestStreak: 2 },
         sound: true,
+        language: 'en' as const,
         reducedMotion: false,
       }),
     );
@@ -63,7 +76,12 @@ describe('persistent session', () => {
     expect(loadData().sound).toBe(true);
   });
   it('roundtrips misses and rejects a broken miss invariant', () => {
-    const value = { stats: recordShot(emptyStats(), 'miss'), sound: false, reducedMotion: false };
+    const value = {
+      stats: recordShot(emptyStats(), 'miss'),
+      sound: false,
+      language: 'en' as const,
+      reducedMotion: false,
+    };
     expect(saveData(value)).toBe(true);
     expect(loadData()).toEqual(value);
     data.set(
@@ -71,5 +89,26 @@ describe('persistent session', () => {
       JSON.stringify({ ...value, stats: { ...value.stats, misses: 8 } }),
     );
     expect(loadData().stats).toEqual(emptyStats());
+  });
+  it('saves Russian choice and migrates missing language from browser', () => {
+    const value = {
+      stats: emptyStats(),
+      sound: false,
+      reducedMotion: false,
+      language: 'ru' as const,
+    };
+    expect(saveData(value)).toBe(true);
+    expect(loadData()).toEqual(value);
+    vi.stubGlobal('navigator', { language: 'ru-RU' });
+    data.set('impossible-penalty:v1', JSON.stringify({ stats: emptyStats(), sound: true }));
+    expect(loadData().language).toBe('ru');
+  });
+  it('rejects unsupported saved language', () => {
+    vi.stubGlobal('navigator', { language: 'en-US' });
+    data.set(
+      'impossible-penalty:v1',
+      JSON.stringify({ stats: emptyStats(), language: 'javascript' }),
+    );
+    expect(loadData().language).toBe('en');
   });
 });

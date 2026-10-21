@@ -310,7 +310,7 @@ h1 .title-period {
   margin-left: 4px;
   color: #71847c;
 }
-.keeper-remark {
+.keeper-aside {
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -811,7 +811,7 @@ kbd {
   .keeper-number {
     display: none;
   }
-  .keeper-remark {
+  .keeper-aside {
     font-size: 9px;
     letter-spacing: 0.2px;
     order: 3;
@@ -961,4 +961,33 @@ kbd {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.language-button {
+  min-width: 40px;
+  color: var(--lime);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+html[lang='ru'] .stats-dialog h2 {
+  font-size: clamp(30px, 7vw, 40px);
+  letter-spacing: -1.5px;
+}
+html[lang='ru'] .keeper-aside {
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+@media (max-width: 600px) {
+  .wordmark > span {
+    display: none;
+  }
+  .wordmark {
+    max-width: none;
+  }
+  .language-button {
+    min-width: 34px;
+  }
+  html[lang='ru'] .keeper-aside {
+    font-size: 8px;
+  }
 }

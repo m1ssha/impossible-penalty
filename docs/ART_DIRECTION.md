@@ -14,4 +14,16 @@ Giant saves preserve the keeper's silhouette and palette. The scene scales him c
 
 The invading supporter is distinct from the blue striker: magenta shirt #b2588b, plum shadows #763e68, lime scarf #d6ef7f/#c7e66d, brown hair, casual shorts, bare legs and ivory sneakers. `fan-run` and `fan-kick` are original 32×48 textures facing away toward the goal, with origin (16,48). The kick toe shares the striker's contact anchor (23,45); the trailing scarf makes the unexpected entrance legible during movement. Fan celebration and exit are animated by the scene.
 
-Outside-frame aim uses an orange reticle. A miss travels visibly wide, high or onto the turf and displays WIDE; it does not trigger the net's goal reaction. The UI includes a dedicated MISSES counter, using the same typography and spacing as existing statistics.
+Outside-frame aim uses an orange reticle. A miss travels visibly wide, high or onto the turf and displays a localized miss message (WIDE in English); it does not trigger the net's goal reaction. The UI includes a dedicated misses counter (MISSES in English), using the same typography and spacing as existing statistics.
+
+## Comic thoughts and localization
+
+Keeper remarks appear in a comic thought cloud with a crisp outlined silhouette and a small trail of thought dots pointing toward his actual transformed head. Position follows the head, including changes in pose, scale, rotation and flip; cloud bounds stay inside the scene rather than being clipped by its edges. The reticle renders above the cloud. The cloud is hidden during ball flight to keep the trajectory readable.
+
+Both Russian and English must preserve the same visual hierarchy and contrast. Use fonts with readable Cyrillic glyphs and wrap longer translated thoughts within the cloud. Interface labels, in-canvas feedback and accessibility text change together through RU / EN; IMPOSSIBLE PENALTY remains the unchanged brand. Changing language updates the current thought and result immediately without restarting animation. No text is baked into stadium or character textures.
+
+## Sky-shot rocket
+
+`rocket` is an original 32×16 pixel texture facing right, with its exact nose at source (31,8), exhaust at (2,8), and geometric center (16,8). A cream steel body, teal outline and fins, crimson nose and clustered orange/yellow jet share the stadium palette and crisp sampling. No emoji or external bitmap is used. The scene controls rotation, scale, smoke trail, pixel explosion and shockwave.
+
+Every target above the goal triggers this visual interception. The rocket's nose must meet the moving ball while it remains visible inside the canvas. The ball disappears at the impact and the episode counts as one miss. Keep the explosion localized, preserve readable silhouettes, and reduce smoke/sparks/camera shake under reduced motion. Avoid full-screen flashing. In-canvas feedback and the keeper's response support both EN and RU, including language switches during the flight.

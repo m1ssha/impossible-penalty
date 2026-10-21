@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Stats } from '../core/model';
+import type { Language } from '../core/i18n';
+import { uiText } from './localization';
 
 interface StatsDialogProps {
+  language: Language;
   stats: Stats;
   reducedMotion: boolean;
   onReducedMotion: (value: boolean) => void;
@@ -10,12 +13,14 @@ interface StatsDialogProps {
 }
 
 export function StatsDialog({
+  language,
   stats,
   reducedMotion,
   onReducedMotion,
   onReset,
   onClose,
 }: StatsDialogProps) {
+  const t = uiText[language];
   const dialogRef = useRef<HTMLDivElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
   const keepRecordRef = useRef<HTMLButtonElement>(null);
@@ -80,46 +85,43 @@ export function StatsDialog({
         ref={dialogRef}
       >
         <div className="dialog-heading">
-          <span className="eyebrow">THE NUMBERS DON’T LIE</span>
-          <button
-            className="icon-button close-button"
-            aria-label="Close statistics"
-            onClick={onClose}
-          >
+          <span className="eyebrow">{t.numbers}</span>
+          <button className="icon-button close-button" aria-label={t.closeStats} onClick={onClose}>
             ×
           </button>
         </div>
         <h2 id="stats-title">
-          Your record<span>.</span>
+          {t.record}
+          <span>.</span>
         </h2>
-        <p className="dialog-intro">Every shot counts. Even the ones he makes look easy.</p>
+        <p className="dialog-intro">{t.dialogIntro}</p>
         <dl className="detailed-stats">
           <div>
-            <dt>Shots taken</dt>
+            <dt>{t.shotsTaken}</dt>
             <dd>{stats.shots}</dd>
           </div>
           <div>
-            <dt>Goals scored</dt>
+            <dt>{t.goalsScored}</dt>
             <dd className="lime-text">{stats.goals}</dd>
           </div>
           <div>
-            <dt>Keeper saves</dt>
+            <dt>{t.keeperSaves}</dt>
             <dd>{stats.saves}</dd>
           </div>
           <div>
-            <dt>Shots missed</dt>
+            <dt>{t.shotsMissed}</dt>
             <dd>{stats.misses}</dd>
           </div>
           <div>
-            <dt>Current save streak</dt>
+            <dt>{t.currentStreak}</dt>
             <dd>{stats.streak}</dd>
           </div>
           <div>
-            <dt>Longest save streak</dt>
+            <dt>{t.longestStreak}</dt>
             <dd>{stats.bestStreak}</dd>
           </div>
           <div className="conversion-stat">
-            <dt>Goal conversion</dt>
+            <dt>{t.conversion}</dt>
             <dd>
               {rate}
               <small>%</small>
@@ -128,8 +130,8 @@ export function StatsDialog({
         </dl>
         <label className="motion-option">
           <span>
-            <strong>Reduced motion</strong>
-            <small>Less camera movement and fewer effects.</small>
+            <strong>{t.reducedMotion}</strong>
+            <small>{t.reducedHelp}</small>
           </span>
           <input
             type="checkbox"
@@ -140,7 +142,7 @@ export function StatsDialog({
         <div className="reset-area">
           {confirmReset ? (
             <>
-              <p>Erase your entire record? This cannot be undone.</p>
+              <p>{t.resetQuestion}</p>
               <div className="reset-actions">
                 <button
                   className="danger-button"
@@ -149,14 +151,14 @@ export function StatsDialog({
                     showResetConfirmation(false);
                   }}
                 >
-                  Yes, reset record
+                  {t.resetConfirm}
                 </button>
                 <button
                   ref={keepRecordRef}
                   className="text-button"
                   onClick={() => showResetConfirmation(false)}
                 >
-                  Keep my record
+                  {t.resetCancel}
                 </button>
               </div>
             </>
@@ -166,16 +168,14 @@ export function StatsDialog({
               className="text-button reset-button"
               onClick={() => showResetConfirmation(true)}
             >
-              Reset statistics
+              {t.reset}
             </button>
           )}
         </div>
         <button className="primary-button" onClick={onClose}>
-          BACK TO THE SPOT <span aria-hidden="true">↗</span>
+          {t.backToSpot} <span aria-hidden="true">↗</span>
         </button>
-        <p className="dialog-footnote">
-          Aim inside the net: a 10% chance of glory. Outside is always a miss.
-        </p>
+        <p className="dialog-footnote">{t.dialogFootnote}</p>
       </div>
     </div>
   );

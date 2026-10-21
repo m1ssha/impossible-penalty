@@ -121,4 +121,23 @@ describe('independent outcome model', () => {
     expect(giants / (200000 - goals)).toBeGreaterThan(0.17);
     expect(giants / (200000 - goals)).toBeLessThan(0.19);
   });
+  it('sky shots trigger rocket interception and still count as one miss', () => {
+    let draws = 0;
+    const shot = planShot({ x: 0.5, y: -0.5 }, [], () => {
+      draws++;
+      return 0.95;
+    });
+    expect(shot.outcome).toBe('miss');
+    expect(shot.surprise).toBe('rocket');
+    expect(shot.remark).toBe('AIR DEFENCE: ONE. FOOTBALL: ZERO.');
+    expect(draws).toBe(0);
+    expect(recordShot(emptyStats(), shot.outcome)).toEqual({
+      shots: 1,
+      goals: 0,
+      saves: 0,
+      misses: 1,
+      streak: 0,
+      bestStreak: 0,
+    });
+  });
 });

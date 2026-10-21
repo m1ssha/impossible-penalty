@@ -129,7 +129,7 @@ test('outside-goal shots miss and rapid clicks stay gated until the next round',
   await openGame(page, 0.1);
   await aimAndShoot(page, -0.3, 1.5);
   await expect.poll(() => score(page)).toEqual([1, 0, 0, 1, 0]);
-  await expect(page.locator('.sr-only')).toContainText('Miss!');
+  await expect(page.locator('.shot-announcement')).toContainText('Miss!');
   await ready(page);
   await aimAndShoot(page, 0.08, 0.1);
   await expect(page.locator('.phase-indicator')).toHaveText('HERE WE GO.');
@@ -193,7 +193,7 @@ for (const surprise of [
     await openGame(page);
     await aimAndShoot(page, 0.85, 0.2);
     await expect.poll(() => score(page)).toEqual(surprise.expected);
-    await expect(page.locator('.sr-only')).toContainText(surprise.announcement);
+    await expect(page.locator('.shot-announcement')).toContainText(surprise.announcement);
     if (surprise.label === 'fan invasion goal')
       await expect(page.locator('.keeper-remark')).toContainText('HE IS NOT EVEN ON THE TEAM.');
     if (testInfo.project.name === 'chromium')
@@ -375,4 +375,82 @@ test('enabled sound generates real Web Audio effects and stays unlocked after re
   await aimAndShoot(page);
   await expect.poll(() => score(page)).toEqual([2, 2, 0, 0, 0]);
   await expect.poll(() => page.evaluate(() => window.__penaltyTones)).toBeGreaterThanOrEqual(6);
+});
+
+test('above-goal shots trigger a rocket interception and count exactly one miss', async ({
+  page,
+}, testInfo) => {
+  await openGame(page);
+  await aimAndShoot(page, 0.5, -0.5);
+  await expect.poll(() => score(page)).toEqual([1, 0, 0, 1, 0]);
+  await expect(page.locator('.shot-announcement')).toHaveText(
+    'Miss! A rocket intercepted the ball.',
+  );
+  await expect(page.locator('.keeper-remark')).toContainText('AIR DEFENCE: ONE. FOOTBALL: ZERO.');
+  await expect(page.locator('.phase-indicator')).toHaveText('ONE MORE?');
+  if (testInfo.project.name === 'chromium' || testInfo.project.name === 'mobile-chromium')
+    await page.screenshot({
+      path: `test-results/${testInfo.project.name}-rocket-result.png`,
+      fullPage: true,
+    });
+  await ready(page);
+  await expect.poll(() => score(page)).toEqual([1, 0, 0, 1, 0]);
+});
+
+test('Russian interface switches immediately, persists, and supports keyboard misses and goals', async ({
+  page,
+}, testInfo) => {
+  await openGame(page, 0.95);
+  await page.getByRole('button', { name: 'Switch to Russian' }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  await expect(page.getByRole('button', { name: 'Переключить на английский' })).toHaveText('EN');
+  await expect(page.locator('.scoreboard dt')).toHaveText([
+    'УДАРЫ',
+    'ГОЛЫ',
+    'СЕЙВЫ',
+    'МИМО',
+    'СЕРИЯ',
+  ]);
+  await expect(page.locator('.phase-indicator')).toHaveText('ТВОЙ УДАР.');
+  await page.getByRole('button', { name: 'Статистика', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Твой результат.' })).toBeVisible();
+  await expect(dialog.getByText('Лучшая серия сейвов')).toBeVisible();
+  await expect(dialog.getByRole('checkbox', { name: /Меньше анимации/ })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Сбросить статистику' }).click();
+  await expect(dialog.getByRole('button', { name: 'Да, сбросить' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Оставить результат' }).click();
+  await dialog.getByRole('button', { name: /ВЕРНУТЬСЯ НА ТОЧКУ/ }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Переключить на английский' })).toBeVisible();
+  await page.locator('canvas').waitFor();
+  await page.waitForTimeout(300);
+  const pitch = page.getByRole('group', { name: /Футбольное поле/ });
+  await pitch.focus();
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => score(page)).toEqual([1, 0, 0, 1, 0]);
+  await expect(page.locator('.shot-announcement')).toContainText('Мимо!');
+  await expect(page.locator('.phase-indicator')).toHaveText('ТВОЙ УДАР.');
+  for (let i = 0; i < 16; i++) await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Space');
+  await expect.poll(() => score(page)).toEqual([2, 1, 0, 1, 0]);
+  await expect(page.locator('.shot-announcement')).toContainText('Гол!');
+  await expect(page.locator('.keeper-remark')).not.toContainText("WAIT. THAT'S ILLEGAL.");
+  await expect(page.locator('.phase-indicator')).toHaveText('ТВОЙ УДАР.');
+  await aimAndShoot(page, 0.5, -0.5);
+  await expect.poll(() => score(page)).toEqual([3, 1, 0, 2, 0]);
+  await expect(page.locator('.shot-announcement')).toHaveText('Мимо! Ракета перехватила мяч.');
+  await expect(page.locator('.phase-indicator')).toHaveText('ТВОЙ УДАР.');
+  if (testInfo.project.name === 'chromium' || testInfo.project.name === 'mobile-chromium')
+    await page.screenshot({
+      path: `test-results/${testInfo.project.name}-russian.png`,
+      fullPage: true,
+    });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.getByRole('button', { name: 'Переключить на английский' }).click();
+  await expect(page.getByRole('button', { name: 'Switch to Russian' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });

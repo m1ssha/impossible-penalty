@@ -1,17 +1,19 @@
 import Phaser from 'phaser';
+import type { Language } from '../core/i18n';
 import type { Phase, Shot } from '../core/model';
 import { PenaltyScene } from './PenaltyScene';
 
 export interface GameCallbacks {
   onPhase(phase: Phase): void;
   onShot(shot: Shot): void;
-  onSound(event: 'kick' | 'save' | 'goal' | 'hover'): void;
+  onSound(event: 'kick' | 'save' | 'goal' | 'hover' | 'rocket' | 'explosion'): void;
   onRemark(text: string): void;
 }
 
 export interface GameController {
   destroy(): void;
   setReducedMotion(value: boolean): void;
+  setLanguage(language: Language): void;
   shoot(): void;
   moveAim(dx: number, dy: number): void;
 }
@@ -65,6 +67,9 @@ export function createGame(parent: HTMLElement, callbacks: GameCallbacks): GameC
       window.removeEventListener('scroll', updateBounds, true);
       game.events.off(Phaser.Core.Events.READY, refreshScale);
       game.destroy(true);
+    },
+    setLanguage(language) {
+      scene.setLanguage(language);
     },
     setReducedMotion(value) {
       scene.setReducedMotion(value);

@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { planShot, type Phase, type Point, type Shot } from '../core/model';
 import type { GameCallbacks } from './createGame';
 import { createArt } from './art';
+import { translateRemark, type Language } from '../core/i18n';
+import { canvasCopy, resultCopy } from './localization';
 
 const GOAL = { x: 226, y: 154, width: 508, height: 202 };
 const BALL = { x: 492, y: 527 };
@@ -9,6 +11,9 @@ const KEEPER = { x: 480, y: 365 };
 const RUNUP_MS = 650;
 const FLIGHT_MS = 640;
 const CONTACT_T = 0.84;
+const ROCKET_LAUNCH_T = 0.18;
+const ROCKET_CONTACT_T = 0.86;
+const ROCKET_SCALE = 2.2;
 const clamp = Phaser.Math.Clamp;
 const lerp = Phaser.Math.Linear;
 const ease = (t: number) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
@@ -36,12 +41,17 @@ export class PenaltyScene extends Phaser.Scene {
   private shotSequence = 0;
   private shot: Shot | null = null;
   private reducedMotion = false;
+  private language: Language = 'en';
   private suspended = false;
   private initialized = false;
   private hasResolved = false;
   private keeper!: Phaser.GameObjects.Image;
   private striker!: Phaser.GameObjects.Image;
   private fan!: Phaser.GameObjects.Image;
+  private rocket!: Phaser.GameObjects.Image;
+  private rocketLaunched = false;
+  private rocketSmokeTime = 0;
+  private rocketImpact = { x: 480, y: 100 };
   private incidentBanner!: Phaser.GameObjects.Text;
   private smokeAccumulator = 0;
   private ball!: Phaser.GameObjects.Image;
@@ -49,6 +59,12 @@ export class PenaltyScene extends Phaser.Scene {
   private effects!: Phaser.GameObjects.Graphics;
   private net!: Phaser.GameObjects.Graphics;
   private reticle!: Phaser.GameObjects.Graphics;
+  private thoughtCloud!: Phaser.GameObjects.Graphics;
+  private thoughtText!: Phaser.GameObjects.Text;
+  private thought = 'GO ON. PICK A CORNER.';
+  private thoughtAge = 0;
+  private thoughtSide = 1;
+  private thoughtBelow = false;
   private keeperStart = { ...KEEPER };
   private contact = { x: 480, y: 250 };
   private diveEnd = { ...KEEPER };
@@ -101,9 +117,25 @@ export class PenaltyScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(9)
       .setVisible(false);
+    this.rocket = this.add
+      .image(-100, 420, 'rocket')
+      .setScale(ROCKET_SCALE)
+      .setDepth(6.5)
+      .setVisible(false);
     this.ball = this.add.image(BALL.x, BALL.y, 'ball').setScale(2).setDepth(6);
     this.effects = this.add.graphics().setDepth(7);
-    this.reticle = this.add.graphics().setDepth(8);
+    this.reticle = this.add.graphics().setDepth(13);
+    this.thoughtCloud = this.add.graphics().setDepth(11);
+    this.thoughtText = this.add
+      .text(0, 0, translateRemark(this.thought, this.language), {
+        fontFamily: 'monospace',
+        fontSize: '22px',
+        fontStyle: 'bold',
+        color: '#203137',
+        lineSpacing: 3,
+        wordWrap: { width: 230, useAdvancedWrap: true },
+      })
+      .setDepth(12);
     this.celebration = this.add
       .text(480, 236, '', {
         fontFamily: 'monospace',
@@ -147,6 +179,16 @@ export class PenaltyScene extends Phaser.Scene {
     this.suspended = document.hidden;
     this.callbacks.onPhase('ready');
     this.drawReticle();
+    this.drawThought();
+  }
+
+  setLanguage(language: Language): void {
+    this.language = language;
+    if (!this.initialized) return;
+    this.thoughtText.setText(translateRemark(this.thought, this.language));
+    this.refreshResultCopy();
+    this.refreshIncidentCopy();
+    this.drawThought();
   }
 
   setReducedMotion(value: boolean): void {
@@ -170,7 +212,10 @@ export class PenaltyScene extends Phaser.Scene {
     this.hasResolved = false;
     this.keeper.setAlpha(1);
     this.striker.setAlpha(1);
-    this.ball.setAlpha(1);
+    this.ball.setAlpha(1).setVisible(true);
+    this.rocketLaunched = false;
+    this.rocketSmokeTime = 0;
+    this.rocket.setVisible(false);
     this.shot = planShot({ ...this.aim }, this.history, Math.random, this.shotSequence++);
     if (this.shot.outcome !== 'miss') this.history = [...this.history, { ...this.aim }].slice(-6);
     this.fan
@@ -181,11 +226,12 @@ export class PenaltyScene extends Phaser.Scene {
       .setVisible(this.shot.surprise === 'fan');
     this.incidentBanner
       .setVisible(this.shot.surprise === 'fan')
-      .setText('FAN INVASION!')
+      .setText(canvasCopy('fanInvasion', this.language))
       .setAlpha(1);
     this.keeperStart = { x: this.keeper.x, y: this.keeper.y };
     this.direction = this.aim.x < 0.5 ? -1 : 1;
     this.contact = this.flightPosition(CONTACT_T);
+    this.rocketImpact = this.flightPosition(ROCKET_CONTACT_T);
     this.diveRotation = this.direction * (0.9 + (1 - this.aim.y) * 0.25);
     this.keeper.setFlipX(this.direction < 0);
     // Dive texture's extended hand (27,12), transformed exactly into ball contact.
@@ -197,7 +243,9 @@ export class PenaltyScene extends Phaser.Scene {
       this.keeper.setFlipX(this.direction > 0);
     }
     this.reticle.setVisible(false);
-    this.callbacks.onRemark(this.shot.surprise === 'fan' ? 'WHO LET YOU ON THE PITCH?!' : '');
+    this.setThought(this.shot.surprise === 'fan' ? 'WHO LET YOU ON THE PITCH?!' : '');
+    this.thoughtCloud.setVisible(false);
+    this.thoughtText.setVisible(false);
     this.callbacks.onPhase('runup');
   }
 
@@ -262,6 +310,7 @@ export class PenaltyScene extends Phaser.Scene {
       this.aim.x >= 0 && this.aim.x <= 1 && this.aim.y >= 0 && this.aim.y <= 1
         ? 0xe4ff90
         : 0xffa45d;
+    g.lineStyle(5, 0x14292d, 0.9).strokeRect(x - 15, y - 15, 30, 30);
     g.lineStyle(2, color, 0.9);
     const gap = 5;
     const arm = 12;
@@ -296,6 +345,7 @@ export class PenaltyScene extends Phaser.Scene {
     if (!this.initialized || this.suspended) return;
     const dt = Math.min(delta, 100);
     this.totalTime += dt;
+    this.thoughtAge += dt;
     this.phaseTime += dt;
     if (this.phase === 'ready') this.updateIdle(dt);
     else if (this.phase === 'runup') this.updateRunup();
@@ -304,6 +354,7 @@ export class PenaltyScene extends Phaser.Scene {
     this.drawShadows();
     this.drawEffects(dt);
     this.drawNet();
+    this.drawThought();
     this.updateCamera();
   }
 
@@ -411,7 +462,12 @@ export class PenaltyScene extends Phaser.Scene {
     if (!this.shot) return;
     const t = clamp(this.phaseTime / FLIGHT_MS, 0, 1);
     const miss = this.shot.outcome === 'miss';
-    const limit = this.shot.outcome === 'goal' || miss ? 1 : CONTACT_T;
+    const rocketShot = this.shot.surprise === 'rocket';
+    const limit = rocketShot
+      ? ROCKET_CONTACT_T
+      : this.shot.outcome === 'goal' || miss
+        ? 1
+        : CONTACT_T;
     const ballT = Math.min(t, limit);
     const pos = this.flightPosition(ballT);
     this.ball
@@ -431,13 +487,14 @@ export class PenaltyScene extends Phaser.Scene {
       if (this.trail.length > 7) this.trail.shift();
     }
     if (miss) {
+      if (rocketShot) this.updateRocket(t);
       this.keeper
         .setTexture('keeper-idle')
         .setScale(2.5)
         .setPosition(KEEPER.x + this.direction * ease(t) * 12, KEEPER.y)
         .setRotation(this.direction * Math.sin(t * Math.PI) * 0.025);
       this.striker.setTexture(t < 0.28 ? 'striker-kick' : 'striker-idle').setRotation(0);
-      if (t >= 1) this.resolve();
+      if (t >= limit) this.resolve();
       return;
     }
     const start =
@@ -462,7 +519,7 @@ export class PenaltyScene extends Phaser.Scene {
     if (this.shot.surprise === 'giant' && movement > 0.15)
       this.incidentBanner
         .setVisible(true)
-        .setText('REGULATION SIZE. PROBABLY.')
+        .setText(canvasCopy('regulationSize', this.language))
         .setColor('#ffe4b6');
     this.keeper
       .setScale(keeperScale)
@@ -488,12 +545,57 @@ export class PenaltyScene extends Phaser.Scene {
     if (t >= limit) this.resolve();
   }
 
+  private updateRocket(t: number): void {
+    if (t < ROCKET_LAUNCH_T) return;
+    if (!this.rocketLaunched) {
+      this.rocketLaunched = true;
+      this.callbacks.onSound('rocket');
+      this.incidentBanner.setVisible(true).setText(canvasCopy('airDefence', this.language));
+    }
+    // Clear the warning before the rising ball enters its screen area.
+    this.incidentBanner.setAlpha(1 - clamp((t - 0.42) / 0.18, 0, 1));
+    if (t >= 0.6) this.incidentBanner.setVisible(false);
+    const start = { x: this.rocketImpact.x < 480 ? 1040 : -80, y: 430 };
+    const angle = Math.atan2(this.rocketImpact.y - start.y, this.rocketImpact.x - start.x);
+    const progress = clamp((t - ROCKET_LAUNCH_T) / (ROCKET_CONTACT_T - ROCKET_LAUNCH_T), 0, 1);
+    const noseX = lerp(start.x, this.rocketImpact.x, progress);
+    const noseY = lerp(start.y, this.rocketImpact.y, progress);
+    // Texture tip (31,8), origin (16,8): its nose meets the still-moving ball.
+    this.rocket
+      .setVisible(true)
+      .setRotation(angle)
+      .setPosition(
+        noseX - Math.cos(angle) * 15 * ROCKET_SCALE,
+        noseY - Math.sin(angle) * 15 * ROCKET_SCALE,
+      );
+    if (this.phaseTime - this.rocketSmokeTime >= (this.reducedMotion ? 100 : 30)) {
+      this.rocketSmokeTime = this.phaseTime;
+      const life = this.reducedMotion ? 450 : 800;
+      const tailX = this.rocket.x - Math.cos(angle) * 14 * ROCKET_SCALE;
+      const tailY = this.rocket.y - Math.sin(angle) * 14 * ROCKET_SCALE;
+      this.particles.push({
+        x: tailX,
+        y: tailY,
+        vx: -Math.cos(angle) * 35,
+        vy: -Math.sin(angle) * 35 - 8,
+        life,
+        max: life,
+        color: 0xcfb28a,
+        size: 5,
+        smoke: true,
+      });
+    }
+  }
+
   private resolve(): void {
     if (!this.shot || this.hasResolved) return;
     this.hasResolved = true;
     const isGoal = this.shot.outcome === 'goal';
     const miss = this.shot.outcome === 'miss';
-    const point = this.flightPosition(isGoal || miss ? 1 : CONTACT_T);
+    const rocketShot = this.shot.surprise === 'rocket';
+    const point = this.flightPosition(
+      rocketShot ? ROCKET_CONTACT_T : isGoal || miss ? 1 : CONTACT_T,
+    );
     this.ball.setPosition(point.x, point.y);
     if (!isGoal && !miss)
       this.keeper.setPosition(this.diveEnd.x, this.diveEnd.y).setRotation(this.diveRotation);
@@ -513,7 +615,30 @@ export class PenaltyScene extends Phaser.Scene {
     this.phaseTime = 0;
     this.callbacks.onShot(this.shot);
     if (!miss) this.callbacks.onSound(isGoal ? 'goal' : 'save');
-    this.callbacks.onRemark(this.shot.remark);
+    if (rocketShot) {
+      this.rocket.setVisible(false);
+      this.ball.setVisible(false);
+      this.trail = [];
+      this.callbacks.onSound('explosion');
+      this.burst(point.x, point.y, 0xffd87b, 42, 210);
+      this.burst(point.x, point.y, 0xf47c36, 24, 165);
+      const cloudCount = this.reducedMotion ? 3 : 12;
+      for (let i = 0; i < cloudCount; i++) {
+        const life = 650 + Math.random() * 450;
+        this.particles.push({
+          x: point.x,
+          y: point.y,
+          vx: (Math.random() - 0.5) * 110,
+          vy: -25 - Math.random() * 55,
+          life,
+          max: life,
+          color: 0x667779,
+          size: 6 + Math.floor(Math.random() * 5),
+          smoke: true,
+        });
+      }
+    }
+    this.setThought(this.shot.remark);
     this.callbacks.onPhase('result');
     if (!miss)
       this.burst(
@@ -527,44 +652,13 @@ export class PenaltyScene extends Phaser.Scene {
       this.burst(200, 115, 0xffad58, 25, 180);
       this.burst(760, 115, 0xc3ff78, 25, 180);
     }
-    this.celebration.setText(
-      miss
-        ? 'WIDE.'
-        : isGoal
-          ? this.shot.surprise === 'fan'
-            ? 'FAN-TASTIC!'
-            : 'GOOOAL!'
-          : this.shot.outcome === 'flash'
-            ? 'BLINK. SAVED.'
-            : this.shot.outcome === 'showoff'
-              ? 'TOO EASY.'
-              : this.shot.surprise === 'giant'
-                ? 'ABSOLUTELY NOT.'
-                : 'DENIED.',
-    );
+    this.refreshResultCopy();
     this.celebration
       .setColor(miss ? '#ffad6b' : isGoal ? '#e4ff90' : '#fff3d1')
       .setVisible(true)
       .setAlpha(0)
       .setScale(0.9);
-    this.resultAccent
-      .setText(
-        miss
-          ? 'THE GOAL WAS THE OTHER BIT'
-          : this.shot.surprise === 'fan'
-            ? 'UNAUTHORISED. UNSTOPPABLE.'
-            : this.shot.surprise === 'giant'
-              ? 'SOMEONE CHECK THE RULEBOOK'
-              : isGoal
-                ? 'THE IMPOSSIBLE JUST HAPPENED'
-                : this.shot.outcome === 'flash'
-                  ? 'REACTION TIME: UNFAIR'
-                  : this.shot.outcome === 'showoff'
-                    ? 'STYLE POINTS: DISRESPECTFUL'
-                    : 'HE KNEW BEFORE YOU DID',
-      )
-      .setVisible(true)
-      .setAlpha(0);
+    this.resultAccent.setVisible(true).setAlpha(0);
   }
 
   private updateResult(dt: number): void {
@@ -597,13 +691,14 @@ export class PenaltyScene extends Phaser.Scene {
       const targetX = GOAL.x + this.shot.target.x * GOAL.width;
       const targetY = GOAL.y + this.shot.target.y * GOAL.height;
       const drift = this.reducedMotion ? 0.15 : 0.3;
-      this.ball
-        .setPosition(
-          point.x + (targetX - BALL.x) * seconds * drift,
-          point.y + (targetY - BALL.y) * seconds * drift + seconds * seconds * 35,
-        )
-        .setRotation(seconds * 8)
-        .setAlpha(fade);
+      if (this.shot.surprise !== 'rocket')
+        this.ball
+          .setPosition(
+            point.x + (targetX - BALL.x) * seconds * drift,
+            point.y + (targetY - BALL.y) * seconds * drift + seconds * seconds * 35,
+          )
+          .setRotation(seconds * 8)
+          .setAlpha(fade);
       const recover = ease(seconds / 0.5);
       this.keeper
         .setPosition(lerp(this.landingStart.x, KEEPER.x, recover), KEEPER.y)
@@ -672,6 +767,9 @@ export class PenaltyScene extends Phaser.Scene {
     this.particles = [];
     this.trail = [];
     this.fan.setVisible(false).setAlpha(1);
+    this.rocket.setVisible(false);
+    this.rocketLaunched = false;
+    this.rocketSmokeTime = 0;
     this.incidentBanner.setVisible(false).setAlpha(1).setColor('#ffe5ee');
     this.celebration.setVisible(false);
     this.resultAccent.setVisible(false);
@@ -682,12 +780,135 @@ export class PenaltyScene extends Phaser.Scene {
       .setFlipX(false)
       .setTexture('keeper-idle');
     this.striker.setPosition(455, 550).setRotation(0).setTexture('striker-idle');
-    this.ball.setPosition(BALL.x, BALL.y).setScale(2).setAlpha(0);
+    this.ball.setPosition(BALL.x, BALL.y).setScale(2).setAlpha(0).setVisible(true);
     this.keeper.setAlpha(0);
     this.striker.setAlpha(0);
     this.cameras.main.setScroll(0, 0);
     this.drawReticle();
     this.callbacks.onPhase('ready');
+  }
+
+  private refreshResultCopy(): void {
+    if (!this.shot) return;
+    const result = resultCopy(this.shot, this.language);
+    this.celebration.setFontSize(60).setText(result.title);
+    if (this.celebration.width > 880)
+      this.celebration.setFontSize(Math.floor((60 * 880) / this.celebration.width));
+    this.resultAccent.setFontSize(13).setText(result.accent);
+    if (this.resultAccent.width > 880)
+      this.resultAccent.setFontSize(Math.floor((13 * 880) / this.resultAccent.width));
+  }
+
+  private refreshIncidentCopy(): void {
+    if (this.shot?.surprise === 'fan')
+      this.incidentBanner.setText(canvasCopy('fanInvasion', this.language));
+    else if (this.shot?.surprise === 'giant')
+      this.incidentBanner.setText(canvasCopy('regulationSize', this.language));
+    else if (this.shot?.surprise === 'rocket')
+      this.incidentBanner.setText(canvasCopy('airDefence', this.language));
+  }
+
+  private setThought(text: string): void {
+    this.thought = text;
+    this.thoughtAge = 0;
+    const head = this.keeperHead();
+    this.thoughtSide = head.x < 480 ? -1 : 1;
+    this.thoughtBelow = head.y >= 310;
+    this.thoughtText.setText(translateRemark(text, this.language));
+    this.callbacks.onRemark(text);
+  }
+
+  private keeperHead(): { x: number; y: number } {
+    const localY = -38 * this.keeper.scaleY;
+    return {
+      x: this.keeper.x - localY * Math.sin(this.keeper.rotation),
+      y: this.keeper.y + localY * Math.cos(this.keeper.rotation),
+    };
+  }
+
+  private drawThought(): void {
+    const visible = !!this.thought && (this.phase === 'ready' || this.phase === 'result');
+    const g = this.thoughtCloud.clear().setVisible(visible);
+    this.thoughtText.setVisible(visible);
+    if (!visible) return;
+    const head = this.keeperHead();
+    const width = Math.ceil(Math.max(186, this.thoughtText.width + 38) / 2) * 2;
+    const height = Math.ceil(Math.max(68, this.thoughtText.height + 34) / 2) * 2;
+    const side = this.phase === 'ready' ? 1 : this.thoughtSide;
+    const x = Math.round(clamp(side > 0 ? head.x + 32 : head.x - width - 32, 18, 942 - width));
+    let y = head.y - height - 30;
+    // Keep the central result lettering unobstructed while the cloud follows
+    // the keeper's transformed head all the way through a giant recovery.
+    if (this.phase === 'result')
+      y = this.thoughtBelow ? Math.max(332, head.y + 25) : Math.min(y, 174 - height);
+    y = Math.round(clamp(y, 18, 578 - height));
+    const alpha = Math.min(
+      clamp(this.thoughtAge / 130, 0, 1),
+      this.phase === 'ready' ? clamp(this.phaseTime / 160, 0, 1) : this.keeper.alpha,
+    );
+    g.setAlpha(alpha);
+    this.thoughtText.setAlpha(alpha).setPosition(x + 19, y + 16);
+    const ink = 0x172c31;
+    const paper = 0xfff7df;
+    // A stepped, scalloped silhouette: original integer-grid comic cloud.
+    const shape = [
+      [20, 8],
+      [30, 8],
+      [30, 0],
+      [66, 0],
+      [66, 4],
+      [width - 70, 4],
+      [width - 70, 0],
+      [width - 30, 0],
+      [width - 30, 8],
+      [width - 14, 8],
+      [width - 14, 16],
+      [width - 4, 16],
+      [width - 4, 28],
+      [width, 28],
+      [width, height - 24],
+      [width - 8, height - 24],
+      [width - 8, height - 12],
+      [width - 22, height - 12],
+      [width - 22, height - 4],
+      [width - 60, height - 4],
+      [width - 60, height],
+      [64, height],
+      [64, height - 4],
+      [24, height - 4],
+      [24, height - 12],
+      [10, height - 12],
+      [10, height - 24],
+      [0, height - 24],
+      [0, 28],
+      [6, 28],
+      [6, 16],
+      [20, 16],
+    ].map(([px, py]) => new Phaser.Math.Vector2(x + px, y + py));
+    g.fillStyle(0xa65e3d, 0.65).fillPoints(
+      shape.map((p) => new Phaser.Math.Vector2(p.x + 5, p.y + 5)),
+      true,
+    );
+    // Three little thought bubbles point toward the actual head. When giant
+    // poses move it far away or offscreen, cap the connector at 84 pixels.
+    const edgeX = clamp(head.x, x + 14, x + width - 14);
+    const edgeY = clamp(head.y, y + 14, y + height - 14);
+    const dx = head.x - edgeX;
+    const dy = head.y - edgeY;
+    const distance = Math.hypot(dx, dy);
+    if (distance > 14) {
+      const span = Math.min(distance, 84);
+      for (let i = 0; i < 3; i++) {
+        const along = span * (0.25 + i * 0.27);
+        const radius = 7 - i * 2;
+        const dotX = Math.round(clamp(edgeX + (dx / distance) * along, 8, 952));
+        const dotY = Math.round(clamp(edgeY + (dy / distance) * along, 8, 592));
+        g.fillStyle(ink).fillCircle(dotX, dotY, radius + 2);
+        g.fillStyle(paper).fillCircle(dotX, dotY, radius);
+      }
+    }
+    g.fillStyle(paper).fillPoints(shape, true);
+    g.lineStyle(4, ink, 1).strokePoints(shape, true);
   }
 
   private drawShadows(): void {
@@ -713,12 +934,13 @@ export class PenaltyScene extends Phaser.Scene {
         : this.phase === 'result'
           ? Math.max(365, this.ball.y + 10)
           : BALL.y + 9;
-    g.fillStyle(0x021813, 0.28).fillEllipse(
-      this.ball.x,
-      shadowY,
-      20 - progress * 9,
-      7 - progress * 3,
-    );
+    if (this.ball.visible)
+      g.fillStyle(0x021813, 0.28).fillEllipse(
+        this.ball.x,
+        shadowY,
+        20 - progress * 9,
+        7 - progress * 3,
+      );
   }
 
   private burst(x: number, y: number, color: number, count: number, speed: number): void {
@@ -766,6 +988,20 @@ export class PenaltyScene extends Phaser.Scene {
         size,
       );
     }
+    if (this.phase === 'result' && this.shot?.surprise === 'rocket' && this.phaseTime < 520) {
+      const progress = this.phaseTime / 520;
+      const radius = 8 + progress * (this.reducedMotion ? 46 : 105);
+      g.lineStyle(3, 0xffb15b, (1 - progress) * 0.9).strokeCircle(
+        this.rocketImpact.x,
+        this.rocketImpact.y,
+        radius,
+      );
+      g.lineStyle(2, 0xffedb3, (1 - progress) * 0.65).strokeCircle(
+        this.rocketImpact.x,
+        this.rocketImpact.y,
+        radius * 0.62,
+      );
+    }
     if (
       this.phase === 'result' &&
       this.phaseTime < 240 &&
@@ -808,14 +1044,16 @@ export class PenaltyScene extends Phaser.Scene {
   private updateCamera(): void {
     if (
       this.reducedMotion ||
-      this.shot?.outcome === 'miss' ||
+      (this.shot?.outcome === 'miss' && this.shot?.surprise !== 'rocket') ||
       this.phase !== 'result' ||
       this.phaseTime > 240
     ) {
       this.cameras.main.setScroll(0, 0);
       return;
     }
-    const amplitude = (1 - this.phaseTime / 240) * (this.shot?.outcome === 'goal' ? 3 : 2);
+    const amplitude =
+      (1 - this.phaseTime / 240) *
+      (this.shot?.surprise === 'rocket' ? 4 : this.shot?.outcome === 'goal' ? 3 : 2);
     this.cameras.main.setScroll(
       Math.sin(this.phaseTime * 0.12) * amplitude,
       Math.cos(this.phaseTime * 0.15) * amplitude,
