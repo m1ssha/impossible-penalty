@@ -1,4 +1,5 @@
 # Art direction
+
 Original 1990s football arcade viewed from behind the striker. Night lights, dark blue grandstands, layered crowd pixels, bottle green turf with perspective bands and chalk lines. Orange goalkeeper is the brightest character; off-white typography and acid lime interface accents frame the pitch. No imported copyrighted assets, emojis or mismatched asset packs.
 
 Palette: ink #0b1418, stands #14252e, teal #24444a, grass #164e3d/#1c6047, chalk #d9eadb, lime #d6fb71, orange #ff903e, shade #bf4a2f, skin #e9ad80, blue striker #578cdb. Discrete pixel clusters, limited palette, hard edges and nearest-neighbor texture sampling. Source characters use 32×48 pixels with a consistent outlined silhouette, boots, gloves, hair, jersey highlights and pose-specific limbs. Stadium contains patterned crowd, floodlight beams, flags, advertising, net and perspective grass detail. UI lives outside canvas; original CSS system font stack avoids external font loading.

@@ -1,7 +1,9 @@
 # IMPOSSIBLE PENALTY
+
 A complete single-screen arcade: night stadium, one confident orange keeper, an independent 10% chance of scoring on every shot. The player should immediately understand click/tap inside the net and want one more try.
 
 ## Stories and acceptance
+
 - Mouse/touch player chooses any point in the goal; preview reticle signals valid input. Rapid extra taps cannot create overlapping rounds.
 - Keyboard player focuses the stadium, adjusts aim with arrows and shoots using Enter/Space; controls and live result are accessible outside canvas.
 - Every accepted shot has runup, contact, perspective flight, believable keeper contact or net impact, reaction, and automatic reset.
@@ -10,6 +12,7 @@ A complete single-screen arcade: night stadium, one confident orange keeper, an 
 - Mobile portrait/landscape, resize and background return preserve the round. Blur pauses the simulation; no background catch-up.
 
 ## Delivery plan
+
 1. Establish contracts, art direction and test strategy; create public repository/issues.
 2. Parallel original art, gameplay, React interface; main agent builds core/storage/audio/toolchain.
 3. Integrate and inspect browser at desktop/mobile sizes. Repair visual/interaction defects.
