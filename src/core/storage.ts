@@ -17,10 +17,10 @@ function validStats(value: unknown): value is Stats {
   if (!value || typeof value !== 'object') return false;
   const s = value as Stats;
   return (
-    ['shots', 'goals', 'saves', 'streak', 'bestStreak'].every(
+    ['shots', 'goals', 'saves', 'misses', 'streak', 'bestStreak'].every(
       (key) => Number.isSafeInteger(s[key as keyof Stats]) && s[key as keyof Stats] >= 0,
     ) &&
-    s.shots === s.goals + s.saves &&
+    s.shots === s.goals + s.saves + s.misses &&
     s.streak <= s.saves &&
     s.bestStreak >= s.streak &&
     s.bestStreak <= s.saves
@@ -34,8 +34,14 @@ export function loadData(): SavedData {
     const data: unknown = JSON.parse(raw);
     if (!data || typeof data !== 'object') return fallback;
     const d = data as Partial<SavedData>;
+    // Version1 records predate wide shots. Preserve all existing totals/settings.
+    const rawStats: unknown = d.stats;
+    const migratedStats =
+      rawStats && typeof rawStats === 'object' && !('misses' in rawStats)
+        ? { ...rawStats, misses: 0 }
+        : rawStats;
     return {
-      stats: validStats(d.stats) ? d.stats : fallback.stats,
+      stats: validStats(migratedStats) ? migratedStats : fallback.stats,
       sound: typeof d.sound === 'boolean' ? d.sound : fallback.sound,
       reducedMotion:
         typeof d.reducedMotion === 'boolean' ? d.reducedMotion : fallback.reducedMotion,

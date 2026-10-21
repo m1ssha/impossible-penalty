@@ -57,6 +57,24 @@ async function ready(page: Page) {
   await expect(page.locator('.phase-indicator')).toHaveText('YOUR SHOT.');
 }
 
+async function forceSurprise(page: Page, outcomeRandom: number, surpriseRandom: number) {
+  await page.addInitScript(
+    ({ outcome, surprise }) => {
+      const original = Math.random.bind(Math);
+      let pending: number[] = [];
+      Math.random = () => pending.shift() ?? original();
+      const arm = (event: Event) => {
+        if (event.target instanceof HTMLCanvasElement) pending = [outcome, surprise];
+      };
+      // Arm immediately before Phaser handles input, after boot and its UUIDs.
+      for (const event of ['pointerdown', 'mousedown', 'touchstart']) {
+        document.addEventListener(event, arm, { capture: true });
+      }
+    },
+    { outcome: outcomeRandom, surprise: surpriseRandom },
+  );
+}
+
 test.beforeEach(async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -73,7 +91,7 @@ test.afterEach(async ({ page }) => {
 
 test('stadium renders cleanly at desktop and mobile sizes', async ({ page }, testInfo) => {
   await openGame(page);
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
   await expect
     .poll(() =>
       page.locator('.game-stage canvas').evaluate((source) => {
@@ -105,27 +123,32 @@ test('stadium renders cleanly at desktop and mobile sizes', async ({ page }, tes
   });
 });
 
-test('pointer aiming ignores outside goal and gates rapid clicks until the next round', async ({
+test('outside-goal shots miss and rapid clicks stay gated until the next round', async ({
   page,
 }) => {
   await openGame(page, 0.1);
-  await page.locator('canvas').click({ position: { x: 15, y: 15 } });
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await aimAndShoot(page, -0.3, 1.5);
+  await expect.poll(() => score(page)).toEqual([1, 0, 0, 1, 0]);
+  await expect(page.locator('.sr-only')).toContainText('Miss!');
+  await ready(page);
   await aimAndShoot(page, 0.08, 0.1);
   await expect(page.locator('.phase-indicator')).not.toHaveText('YOUR SHOT.');
   for (let i = 0; i < 4; i++) await aimAndShoot(page, 0.92, 0.85);
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([2, 0, 1, 1, 1]);
   await ready(page);
   await aimAndShoot(page, 0.42, 0.7);
-  await expect.poll(() => score(page)).toEqual([2, 0, 2, 2]);
+  await expect.poll(() => score(page)).toEqual([3, 0, 2, 1, 2]);
+  await ready(page);
+  await aimAndShoot(page, 1.2, 0.4);
+  await expect.poll(() => score(page)).toEqual([4, 0, 2, 2, 0]);
   await ready(page);
 });
 
 for (const variant of [
-  { label: 'predictor', random: 0.1, expected: [1, 0, 1, 1], remark: 'NICE TRY.' },
-  { label: 'flash', random: 0.6, expected: [1, 0, 1, 1], remark: 'TOO EASY.' },
-  { label: 'showoff', random: 0.8, expected: [1, 0, 1, 1], remark: 'ARE YOU EVEN TRYING?' },
-  { label: 'lucky goal', random: 0.95, expected: [1, 1, 0, 0], remark: "WAIT. THAT'S ILLEGAL." },
+  { label: 'predictor', random: 0.1, expected: [1, 0, 1, 0, 1], remark: 'NICE TRY.' },
+  { label: 'flash', random: 0.6, expected: [1, 0, 1, 0, 1], remark: 'TOO EASY.' },
+  { label: 'showoff', random: 0.8, expected: [1, 0, 1, 0, 1], remark: 'ARE YOU EVEN TRYING?' },
+  { label: 'lucky goal', random: 0.95, expected: [1, 1, 0, 0, 0], remark: "WAIT. THAT'S ILLEGAL." },
 ]) {
   test(`resolves the ${variant.label} animation and returns to ready`, async ({
     page,
@@ -144,6 +167,35 @@ for (const variant of [
   });
 }
 
+for (const surprise of [
+  { label: 'giant save', random: 0.1, expected: [1, 0, 1, 0, 1], announcement: 'grew gigantic' },
+  {
+    label: 'fan invasion goal',
+    random: 0.95,
+    expected: [1, 1, 0, 0, 0],
+    announcement: 'fan invaded the pitch',
+  },
+]) {
+  test(`plays a forced ${surprise.label} without adding a second shot`, async ({
+    page,
+  }, testInfo) => {
+    await forceSurprise(page, surprise.random, 0.1);
+    await openGame(page);
+    await aimAndShoot(page, 0.85, 0.2);
+    await expect.poll(() => score(page)).toEqual(surprise.expected);
+    await expect(page.locator('.sr-only')).toContainText(surprise.announcement);
+    if (surprise.label === 'fan invasion goal')
+      await expect(page.locator('.keeper-remark')).toContainText('HE IS NOT EVEN ON THE TEAM.');
+    if (testInfo.project.name === 'chromium')
+      await page.screenshot({
+        path: `test-results/${surprise.label.replaceAll(' ', '-')}.png`,
+        fullPage: true,
+      });
+    await ready(page);
+    await expect.poll(() => score(page)).toEqual(surprise.expected);
+  });
+}
+
 test('keyboard, settings, saved statistics and confirmed reset work', async ({ page }) => {
   await openGame(page, 0.1);
   const pitch = page.getByRole('group', { name: /Football pitch/ });
@@ -151,7 +203,7 @@ test('keyboard, settings, saved statistics and confirmed reset work', async ({ p
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await ready(page);
   await page.getByRole('button', { name: 'Enable sound' }).click();
   await expect(page.getByRole('button', { name: 'Mute sound' })).toHaveAttribute(
@@ -167,7 +219,7 @@ test('keyboard, settings, saved statistics and confirmed reset work', async ({ p
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'STATS', exact: true })).toBeFocused();
   await page.reload();
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await expect(page.getByRole('button', { name: 'Mute sound' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -176,13 +228,13 @@ test('keyboard, settings, saved statistics and confirmed reset work', async ({ p
   await expect(dialog.getByRole('checkbox', { name: /Reduced motion/ })).toBeChecked();
   await dialog.getByRole('button', { name: 'Reset statistics' }).click();
   await dialog.getByRole('button', { name: 'Keep my record' }).click();
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await dialog.getByRole('button', { name: 'Reset statistics' }).click();
   await dialog.getByRole('button', { name: 'Yes, reset record' }).click();
   await dialog.getByRole('button', { name: /BACK TO THE SPOT/ }).click();
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
   await page.reload();
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
 });
 
 test('resize and orientation preserve playability and settings dialog blocks shots', async ({
@@ -193,12 +245,12 @@ test('resize and orientation preserve playability and settings dialog blocks sho
   await page.getByRole('button', { name: 'STATS', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: /Reduced motion/ })).toBeChecked();
   await page.keyboard.press('Enter');
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 844, height: 390 });
   await aimAndShoot(page, 0.9, 0.15);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await ready(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
@@ -217,14 +269,14 @@ test('denied browser storage keeps an in-memory playable record', async ({ page 
   await openGame(page, 0.1);
   await expect(page.getByText(/Your browser has disabled storage/)).toBeVisible();
   await aimAndShoot(page);
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await ready(page);
 });
 
 test('corrupted stored data recovers to valid defaults', async ({ page }) => {
   await page.addInitScript((key) => localStorage.setItem(key, '{invalid-json'), storageKey);
   await openGame(page);
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
   await expect(page.getByRole('button', { name: 'Enable sound' })).toBeVisible();
 });
 
@@ -280,11 +332,11 @@ test('background pause resumes the accepted shot exactly once', async ({ page })
   await expect(page.locator('.phase-indicator')).toHaveText('HERE WE GO.');
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await page.waitForTimeout(1500);
-  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([0, 0, 0, 0, 0]);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
   await ready(page);
-  await expect.poll(() => score(page)).toEqual([1, 0, 1, 1]);
+  await expect.poll(() => score(page)).toEqual([1, 0, 1, 0, 1]);
 });
 
 test('enabled sound generates real Web Audio effects and stays unlocked after reload', async ({
@@ -302,7 +354,7 @@ test('enabled sound generates real Web Audio effects and stays unlocked after re
   await openGame(page, 0.95);
   await page.getByRole('button', { name: 'Enable sound' }).click();
   await aimAndShoot(page);
-  await expect.poll(() => score(page)).toEqual([1, 1, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([1, 1, 0, 0, 0]);
   await expect.poll(() => page.evaluate(() => window.__penaltyTones)).toBeGreaterThanOrEqual(6);
   await ready(page);
   await page.reload();
@@ -311,6 +363,6 @@ test('enabled sound generates real Web Audio effects and stays unlocked after re
   // A remembered ON preference must not create audio until the next gesture.
   expect(await page.evaluate(() => window.__penaltyTones)).toBe(0);
   await aimAndShoot(page);
-  await expect.poll(() => score(page)).toEqual([2, 2, 0, 0]);
+  await expect.poll(() => score(page)).toEqual([2, 2, 0, 0, 0]);
   await expect.poll(() => page.evaluate(() => window.__penaltyTones)).toBeGreaterThanOrEqual(6);
 });

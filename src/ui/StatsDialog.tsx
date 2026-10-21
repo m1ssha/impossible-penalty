@@ -107,11 +107,8 @@ export function StatsDialog({
             <dd>{stats.saves}</dd>
           </div>
           <div>
-            <dt>Goal conversion</dt>
-            <dd>
-              {rate}
-              <small>%</small>
-            </dd>
+            <dt>Shots missed</dt>
+            <dd>{stats.misses}</dd>
           </div>
           <div>
             <dt>Current save streak</dt>
@@ -120,6 +117,13 @@ export function StatsDialog({
           <div>
             <dt>Longest save streak</dt>
             <dd>{stats.bestStreak}</dd>
+          </div>
+          <div className="conversion-stat">
+            <dt>Goal conversion</dt>
+            <dd>
+              {rate}
+              <small>%</small>
+            </dd>
           </div>
         </dl>
         <label className="motion-option">
@@ -170,7 +174,7 @@ export function StatsDialog({
           BACK TO THE SPOT <span aria-hidden="true">↗</span>
         </button>
         <p className="dialog-footnote">
-          Independent odds. A 10% chance of glory, every single shot.
+          Aim inside the net: a 10% chance of glory. Outside is always a miss.
         </p>
       </div>
     </div>

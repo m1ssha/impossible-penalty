@@ -1,19 +1,24 @@
 # IMPOSSIBLE PENALTY
 
-A complete single-screen arcade: night stadium, one confident orange keeper, an independent 10% chance of scoring on every shot. The player should immediately understand click/tap inside the net and want one more try.
+Одноэкранная футбольная аркада: ночной стадион, самоуверенный оранжевый вратарь и независимый шанс гола 10% при каждом ударе в створ. Главная эмоция — «Да как он опять это отбил?! Ладно, ещё один удар». Игрок сразу понимает управление и может начать без обучения.
 
-## Stories and acceptance
+## Сценарии и критерии приёмки
 
-- Mouse/touch player chooses any point in the goal; preview reticle signals valid input. Rapid extra taps cannot create overlapping rounds.
-- Keyboard player focuses the stadium, adjusts aim with arrows and shoots using Enter/Space; controls and live result are accessible outside canvas.
-- Every accepted shot has runup, contact, perspective flight, believable keeper contact or net impact, reaction, and automatic reset.
-- Persistent counters include shots, goals, saves, current/best save streak. A small stats dialog offers explicit reset and dismissal by Escape/backdrop. Storage failure leaves a functional in-memory game.
-- Sound starts only with user activation and can be muted. Motion preference defaults from OS and is configurable. Dialog pause prevents accidental shots.
-- Mobile portrait/landscape, resize and background return preserve the round. Blur pauses the simulation; no background catch-up.
+- Игрок мышью или касанием выбирает любую точку игрового canvas. Внутри рамки он бьёт в створ; вне рамки — мимо. Оранжевый прицел предупреждает о промахе. Быстрые повторные нажатия не создают наложенные эпизоды.
+- Игрок с клавиатурой фокусирует поле через Tab, перемещает прицел стрелками по всей сцене, включая область за рамкой, и бьёт Enter или пробелом. Инструкции и озвучиваемый результат доступны вне canvas.
+- Каждый принятый удар проходит разбег, контакт, полёт с перспективой, разрешение эпизода, реакцию и автоматическую подготовку следующей попытки. Сейв показывает контакт перчатки с мячом; гол — попадание в сетку; промах — полёт к выбранной точке вне створа и результат WIDE.
+- Удары в створ независимо распределяются как Predictor 50%, Flash 25%, Showoff 15%, гол 10%. Предыдущие результаты и направления не изменяют эти вероятности. Промах при выборе точки вне створа определяется направлением и не входит в эту выборку.
+- Вратарь помнит шесть последних направлений в створ и замечает повторение угла. Реплики и подготовительная поза усиливают характер, сохраняя вероятность гола.
+- В ожидании вратарь дышит, зевает, аплодирует, читает газету или курит сигарету с пиксельным дымом. Во время 18% сейвов он непрерывно вырастает до гигантского размера прямо в прыжке, затем уменьшается при приземлении.
+- В 28% уже выбранных голевых эпизодов на поле выбегает болельщик в малиновой футболке и лаймовом шарфе, бьёт вместо обычного игрока, гарантированно забивает, празднует и убегает. Эпизод считается одним ударом и одним голом, общая вероятность гола в створ остаётся 10%.
+- Постоянные показатели: удары, голы, сейвы, промахи, текущая и лучшая серия сейвов. Гол или промах обрывает текущую серию. Диалог статистики показывает процент реализации и позволяет сбросить показатели после явного подтверждения. Escape и фон закрывают диалог; сбой хранилища оставляет рабочую игру с данными в памяти.
+- Старые сохранения без промахов мигрируют автоматически с нулевым счётчиком `misses`; прежние показатели и настройки сохраняются.
+- Звук по умолчанию отключён, включается действием пользователя и может быть заглушён. Настройка уменьшения анимаций первоначально берётся из ОС и доступна в статистике. Открытый диалог блокирует новые удары.
+- Вертикальный и горизонтальный мобильный экран, resize и возвращение из фона сохраняют игровой эпизод. Скрытая вкладка приостанавливает симуляцию и звук; возврат продолжает локальное время без фонового ускорения.
 
-## Delivery plan
+## План поставки
 
-1. Establish contracts, art direction and test strategy; create public repository/issues.
-2. Parallel original art, gameplay, React interface; main agent builds core/storage/audio/toolchain.
-3. Integrate and inspect browser at desktop/mobile sizes. Repair visual/interaction defects.
-4. Unit/integration/E2E/type/lint/build checks, Russian documentation, meaningful commits, push and verify CI. No hosting deployment.
+1. Согласовать контракты, визуальное направление и стратегию тестирования; создать публичный репозиторий и Issues.
+2. Параллельно реализовать оригинальный арт, игровую сцену и React-интерфейс; главный агент интегрирует логику, хранение, звук и инструменты сборки.
+3. Интегрировать и проверить в браузере на desktop и мобильных размерах. Исправить визуальные дефекты и ошибки взаимодействия.
+4. Пройти unit/integration/E2E/type/lint/build, подготовить русскую документацию, осмысленные коммиты, опубликовать исходники и проверить CI. Хостинг игры и GitHub Pages не настраивать.

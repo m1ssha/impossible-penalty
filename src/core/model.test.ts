@@ -44,7 +44,7 @@ describe('independent outcome model', () => {
     const b = planShot({ x: 0.1, y: 0.1 }, Array(4).fill({ x: 0.1, y: 0.1 }), random);
     expect(a.outcome).toBe(b.outcome);
     expect(b.remark).toBe('SAME CORNER. SAME RESULT.');
-    expect(calls).toBe(2);
+    expect(calls).toBe(4);
   });
   it('varies taunts after memory reaches its six-shot cap', () => {
     const history = Array(6).fill({ x: 0, y: 0 });
@@ -69,6 +69,56 @@ describe('independent outcome model', () => {
     let stats = emptyStats();
     for (const outcome of ['predictor', 'flash', 'showoff', 'goal', 'predictor'] as const)
       stats = recordShot(stats, outcome);
-    expect(stats).toEqual({ shots: 5, goals: 1, saves: 4, streak: 1, bestStreak: 3 });
+    expect(stats).toEqual({ shots: 5, goals: 1, saves: 4, misses: 0, streak: 1, bestStreak: 3 });
+  });
+  it('counts an outside target as a genuine miss without sampling a save', () => {
+    let draws = 0;
+    const shot = planShot({ x: -0.2, y: 0.4 }, [], () => {
+      draws++;
+      return 0.1;
+    });
+    expect(shot.outcome).toBe('miss');
+    expect(shot.surprise).toBe('none');
+    expect(shot.target.x).toBe(-0.2);
+    expect(draws).toBe(0);
+    const stats = recordShot(recordShot(emptyStats(), 'predictor'), 'miss');
+    expect(stats).toEqual({ shots: 2, goals: 0, saves: 1, misses: 1, streak: 0, bestStreak: 1 });
+  });
+  it.each([
+    [0.1, 0.1, 'predictor', 'giant'],
+    [0.6, 0.1, 'flash', 'giant'],
+    [0.8, 0.1, 'showoff', 'giant'],
+    [0.95, 0.1, 'goal', 'fan'],
+    [0.95, 0.8, 'goal', 'none'],
+    [0.1, 0.8, 'predictor', 'none'],
+  ] as const)('selects cosmetic %s/%s independently', (result, cosmetic, outcome, surprise) => {
+    const values = [result, cosmetic];
+    const shot = planShot({ x: 0.5, y: 0.5 }, [], () => values.shift()!);
+    expect(shot.outcome).toBe(outcome);
+    expect(shot.surprise).toBe(surprise);
+  });
+  it('keeps 10% in-goal odds when giant and fan effects are enabled', () => {
+    const random = seeded(0x1a2b3c4d);
+    let goals = 0;
+    let fans = 0;
+    let giants = 0;
+    for (let i = 0; i < 200000; i++) {
+      const shot = planShot({ x: 0.2, y: 0.3 }, [], random, i);
+      if (shot.outcome === 'goal') goals++;
+      if (shot.surprise === 'fan') {
+        fans++;
+        expect(shot.outcome).toBe('goal');
+      }
+      if (shot.surprise === 'giant') {
+        giants++;
+        expect(['goal', 'miss']).not.toContain(shot.outcome);
+      }
+    }
+    expect(goals / 200000).toBeGreaterThan(0.096);
+    expect(goals / 200000).toBeLessThan(0.104);
+    expect(fans / goals).toBeGreaterThan(0.26);
+    expect(fans / goals).toBeLessThan(0.3);
+    expect(giants / (200000 - goals)).toBeGreaterThan(0.17);
+    expect(giants / (200000 - goals)).toBeLessThan(0.19);
   });
 });

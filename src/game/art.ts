@@ -28,11 +28,14 @@ export function createArt(scene: Phaser.Scene): void {
     stadium(new Painter(context));
     p.ctx.drawImage(canvas, 0, 0, 960, 600);
   });
-  for (const pose of ['idle', 'dive', 'showoff', 'yawn', 'clap', 'paper'] as const) {
+  for (const pose of ['idle', 'dive', 'showoff', 'yawn', 'clap', 'paper', 'smoke'] as const) {
     make(`keeper-${pose}`, 32, 48, (p) => keeper(p, pose));
   }
   for (const pose of ['idle', 'run', 'kick'] as const) {
     make(`striker-${pose}`, 32, 48, (p) => striker(p, pose));
+  }
+  for (const pose of ['run', 'kick'] as const) {
+    make(`fan-${pose}`, 32, 48, (p) => striker(p, pose, true));
   }
   make('ball', 12, 12, (p) => {
     p.poly('#091c25', [
@@ -367,7 +370,7 @@ function stadium(p: Painter) {
   }
 }
 
-type KeeperPose = 'idle' | 'dive' | 'showoff' | 'yawn' | 'clap' | 'paper';
+type KeeperPose = 'idle' | 'dive' | 'showoff' | 'yawn' | 'clap' | 'paper' | 'smoke';
 const outline = '#11252a';
 const orange = '#f38b39';
 const orangeLight = '#ffbc58';
@@ -550,6 +553,52 @@ function keeper(p: Painter, pose: KeeperPose) {
       ]);
       glove(p, 10, 29);
     }
+  } else if (pose === 'smoke') {
+    // One relaxed hand on the hip; the other holds the cigarette to his mouth.
+    p.poly(outline, [
+      [10, 18],
+      [10, 23],
+      [7, 26],
+      [11, 28],
+      [10, 32],
+      [3, 29],
+      [3, 24],
+      [6, 19],
+    ]);
+    p.poly(orange, [
+      [8, 20],
+      [9, 22],
+      [6, 26],
+      [10, 29],
+      [8, 30],
+      [4, 27],
+    ]);
+    glove(p, 10, 29);
+    p.poly(outline, [
+      [21, 18],
+      [24, 20],
+      [26, 23],
+      [27, 22],
+      [25, 18],
+      [28, 15],
+      [31, 20],
+      [31, 25],
+      [27, 28],
+      [23, 26],
+      [20, 22],
+    ]);
+    p.poly(orangeLight, [
+      [23, 20],
+      [27, 24],
+      [29, 23],
+      [28, 19],
+      [29, 19],
+      [30, 24],
+      [27, 26],
+      [24, 24],
+      [22, 21],
+    ]);
+    glove(p, 27, 18);
   } else if (pose === 'clap') {
     p.poly(outline, [
       [9, 19],
@@ -746,11 +795,20 @@ function keeper(p: Painter, pose: KeeperPose) {
     p.rect('#7c4b39', 15, 15, 5, 1);
     p.rect('#f9e5ba', 17, 15, 3, 1);
   }
+  if (pose === 'smoke') {
+    // Ember anchor (30,15) is shared with the scene's rising smoke particles.
+    p.rect(outline, 20, 14, 11, 3);
+    p.rect('#cf9d5e', 20, 15, 3, 1);
+    p.rect('#eee8ce', 23, 15, 6, 1);
+    p.rect('#e25739', 29, 14, 2, 2);
+    p.rect('#ffc66a', 30, 14, 1, 1);
+  }
 }
 
-function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
-  const blue = '#548cdf';
-  const pale = '#bddcde';
+function striker(p: Painter, pose: 'idle' | 'run' | 'kick', supporter = false) {
+  const blue = supporter ? '#b2588b' : '#548cdf';
+  const pale = supporter ? '#dfa67b' : '#bddcde';
+  const sneaker = supporter ? '#e4e5ca' : '#e57c51';
   // Back-view player, recognisable by a cobalt shirt, white socks and scarlet boots.
   if (pose === 'kick') {
     p.poly(outline, [
@@ -770,7 +828,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
       [10, 44],
       [7, 44],
     ]);
-    p.rect('#cb5d47', 4, 44, 8, 2);
+    p.rect(supporter ? '#c7d1bd' : '#cb5d47', 4, 44, 8, 2);
     p.poly(outline, [
       [17, 30],
       [22, 31],
@@ -795,8 +853,8 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
       [22, 38],
       [19, 36],
     ]);
-    p.rect('#e57c51', 18, 44, 7, 2);
-    p.rect('#f3a568', 21, 44, 4, 1);
+    p.rect(sneaker, 18, 44, 7, 2);
+    p.rect(supporter ? '#ffffff' : '#f3a568', 21, 44, 4, 1);
   } else if (pose === 'run') {
     p.poly(outline, [
       [10, 31],
@@ -817,7 +875,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
       [3, 41],
       [5, 38],
     ]);
-    p.rect('#e37554', 2, 42, 6, 2);
+    p.rect(supporter ? '#e4e5ca' : '#e37554', 2, 42, 6, 2);
     p.poly(outline, [
       [17, 31],
       [22, 32],
@@ -835,7 +893,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
       [22, 46],
       [19, 42],
     ]);
-    p.rect('#d45d45', 22, 44, 5, 3);
+    p.rect(supporter ? '#c7d1bd' : '#d45d45', 22, 44, 5, 3);
   } else {
     p.poly(outline, [
       [10, 31],
@@ -888,7 +946,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
     [10, 29],
     [9, 22],
   ]);
-  p.poly('#3762a8', [
+  p.poly(supporter ? '#763e68' : '#3762a8', [
     [10, 20],
     [12, 21],
     [12, 27],
@@ -896,13 +954,18 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
     [21, 31],
     [10, 31],
   ]);
-  p.rect('#172e48', 10, 30, 12, 4);
-  p.rect('#729bd1', 11, 18, 9, 2);
-  p.rect('#ceded4', 14, 21, 5, 1);
-  p.rect('#ceded4', 14, 22, 1, 3);
-  p.rect('#ceded4', 18, 22, 1, 6);
-  p.rect('#ceded4', 14, 24, 5, 1);
-  p.rect('#ceded4', 15, 27, 4, 1);
+  p.rect(supporter ? '#48394c' : '#172e48', 10, 30, 12, 4);
+  p.rect(supporter ? '#d584a8' : '#729bd1', 11, 18, 9, 2);
+  if (supporter) {
+    p.rect('#e6b0c0', 15, 23, 3, 3);
+    p.rect('#763e68', 16, 24, 1, 1);
+  } else {
+    p.rect('#ceded4', 14, 21, 5, 1);
+    p.rect('#ceded4', 14, 22, 1, 3);
+    p.rect('#ceded4', 18, 22, 1, 6);
+    p.rect('#ceded4', 14, 24, 5, 1);
+    p.rect('#ceded4', 15, 27, 4, 1);
+  }
   if (pose === 'kick') {
     p.poly(outline, [
       [10, 18],
@@ -1007,7 +1070,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
     ]);
   }
   p.rect(blue, 7, 19, 4, 5);
-  p.rect('#80ade4', 21, 19, 4, 5);
+  p.rect(supporter ? '#d584a8' : '#80ade4', 21, 19, 4, 5);
   // Back of the head: shaved nape, angular dark hair and one lit ear.
   p.poly(outline, [
     [12, 4],
@@ -1021,7 +1084,7 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
   ]);
   p.rect('#d89a70', 11, 10, 11, 4);
   p.rect('#edb27c', 12, 13, 8, 3);
-  p.poly('#263335', [
+  p.poly(supporter ? '#503b35' : '#263335', [
     [11, 6],
     [13, 3],
     [20, 4],
@@ -1031,8 +1094,38 @@ function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
     [13, 12],
     [11, 11],
   ]);
-  p.rect('#43514a', 13, 5, 6, 2);
-  p.rect('#33423f', 18, 7, 3, 4);
+  p.rect(supporter ? '#936449' : '#43514a', 13, 5, 6, 2);
+  p.rect(supporter ? '#6e493a' : '#33423f', 18, 7, 3, 4);
   p.rect('#e8b17b', 21, 10, 1, 3);
   p.rect('#a16954', 14, 15, 5, 1);
+  if (supporter) {
+    // A trailing lime scarf instantly separates the invading fan from the striker.
+    p.poly(outline, [
+      [10, 14],
+      [22, 14],
+      [23, 18],
+      [13, 20],
+      [10, 25],
+      [5, 23],
+      [9, 18],
+    ]);
+    p.rect('#d6ef7f', 11, 15, 11, 3);
+    p.rect('#a1ba55', 12, 18, 8, 1);
+    p.poly('#c7e66d', [
+      [10, 17],
+      [14, 18],
+      [11, 23],
+      [7, 22],
+    ]);
+    p.rect('#f1f2b2', 8, 21, 4, 1);
+    p.rect('#8aa04a', 7, 23, 1, 2);
+    p.rect('#8aa04a', 10, 23, 1, 2);
+    if (pose === 'kick') {
+      p.rect('#a25783', 5, 44, 4, 1);
+      p.rect('#a25783', 19, 44, 3, 1);
+    } else {
+      p.rect('#a25783', 3, 42, 3, 1);
+      p.rect('#a25783', 23, 44, 2, 1);
+    }
+  }
 }

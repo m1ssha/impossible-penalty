@@ -329,7 +329,7 @@ h1 .title-period {
 }
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   padding: 0;
   margin: 0;
   background: #111c1e;
@@ -362,6 +362,9 @@ h1 .title-period {
 }
 .scoreboard .goals-stat dd {
   color: var(--lime);
+}
+.scoreboard .misses-stat dd {
+  color: #ce9c7e;
 }
 .stat-tag {
   font: 8px/1.4 var(--mono);
@@ -561,6 +564,15 @@ kbd {
 .detailed-stats dd > small {
   font-size: 17px;
   margin-left: 2px;
+}
+.detailed-stats > .conversion-stat {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.detailed-stats > .conversion-stat dd {
+  margin-top: 0;
 }
 .lime-text {
   color: var(--lime);
@@ -824,7 +836,10 @@ kbd {
     gap: 6px;
   }
   .streak-mark {
-    font-size: 16px;
+    display: none;
+  }
+  .streak-prefix {
+    display: none;
   }
   .instructions-row {
     padding-top: 18px;
@@ -918,7 +933,7 @@ kbd {
     padding-right: 8px;
   }
   .scoreboard dt {
-    font-size: 6px;
+    font-size: 7px;
     letter-spacing: 0.5px;
   }
   .scoreboard dd {

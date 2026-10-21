@@ -61,12 +61,21 @@ export default function App() {
     if (!stageRef.current) return () => audio.destroy();
     try {
       gameRef.current = createGame(stageRef.current, {
-        onPhase: setPhase,
+        onPhase: (nextPhase) => {
+          setPhase(nextPhase);
+          if (nextPhase === 'runup') setAnnouncement('');
+        },
         onShot: (shot) => {
           setAnnouncement(
-            shot.outcome === 'goal'
-              ? 'Goal! You beat the keeper.'
-              : 'Saved by the keeper. Try again.',
+            shot.outcome === 'miss'
+              ? 'Miss! Your shot went outside the goal. Try aiming inside the net.'
+              : shot.surprise === 'fan'
+                ? 'Goal! A fan invaded the pitch and scored for you.'
+                : shot.surprise === 'giant'
+                  ? 'Saved! The keeper grew gigantic to stop your shot.'
+                  : shot.outcome === 'goal'
+                    ? 'Goal! You beat the keeper.'
+                    : 'Saved by the keeper. Try again.',
           );
           setData((previous) => ({ ...previous, stats: recordShot(previous.stats, shot.outcome) }));
         },
@@ -218,7 +227,7 @@ export default function App() {
           className={`stadium-shell ${phase !== 'ready' ? 'is-playing' : ''}`}
           tabIndex={statsOpen ? -1 : 0}
           role="group"
-          aria-label="Football pitch. Use arrow keys to aim and Enter or Space to shoot."
+          aria-label="Football pitch. Aim anywhere with arrow keys, then Enter or Space to shoot. Inside the net can score; outside is a miss."
           aria-describedby="game-controls"
           onKeyDown={onGameKey}
           onPointerDown={(event) => {
@@ -271,8 +280,14 @@ export default function App() {
             <dt>SAVES</dt>
             <dd>{String(data.stats.saves).padStart(2, '0')}</dd>
           </div>
+          <div className="misses-stat">
+            <dt>MISSES</dt>
+            <dd>{String(data.stats.misses).padStart(2, '0')}</dd>
+          </div>
           <div>
-            <dt>SAVE STREAK</dt>
+            <dt aria-label="Save streak">
+              <span className="streak-prefix">SAVE </span>STREAK
+            </dt>
             <dd>
               {String(data.stats.streak).padStart(2, '0')}
               <span className="streak-mark" aria-hidden="true">
@@ -298,7 +313,7 @@ export default function App() {
             <circle cx="10" cy="10" r="5" />
           </svg>
           <strong>AIM. SHOOT. REPEAT.</strong>
-          <span>Click or tap anywhere inside the goal.</span>
+          <span>Click or tap anywhere on the field. Outside the net? That’s a miss.</span>
         </p>
         <p className="keyboard-hint">
           <kbd>↑</kbd>
