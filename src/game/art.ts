@@ -32,7 +32,7 @@ export function createArt(scene: Phaser.Scene): void {
     make(`keeper-${pose}`, 32, 48, (p) => keeper(p, pose));
   }
   for (const pose of ['idle', 'run', 'kick'] as const) {
-    make(`striker-${pose}`, 32, 48, (p) => striker(p, pose));
+    make(`striker-${pose}`, 32, 48, (p) => messi(p, pose));
   }
   for (const pose of ['run', 'kick'] as const) {
     make(`fan-${pose}`, 32, 48, (p) => striker(p, pose, true));
@@ -418,6 +418,9 @@ function stadium(p: Painter) {
     [367, 179],
   ]);
   p.rect('#184b3b', 125, 86, 230, 88);
+  // Chalk goal line: source center y179 = scene y358, under net strands/posts.
+  p.rect('#c6d5b2', 0, 178, 480, 2);
+  p.rect('#e2e9d1', 113, 178, 254, 2);
   // Net knots and slack bottom seam. Low contrast keeps ball and hands readable.
   for (let x = 125; x <= 355; x += 10)
     p.line('#38685a', [
@@ -950,6 +953,400 @@ function keeper(p: Painter, pose: KeeperPose) {
     p.rect('#e25739', 29, 14, 2, 2);
     p.rect('#ffc66a', 30, 14, 1, 1);
   }
+}
+
+/** Original Messi-inspired pixel caricature; drawn directly, never mirrored. */
+function messi(p: Painter, pose: 'idle' | 'run' | 'kick') {
+  const ink = '#10252b';
+  const ivory = '#e8ecdd';
+  const sockShadow = '#a6c2c1';
+  const sky = '#78b9d4';
+  const skyShade = '#478ba8';
+  const boots = '#e57d58';
+  const skinLight = '#e5b18a';
+  if (pose === 'kick') {
+    // The left knee leads the swing. Exact left toe contact: source (9,45).
+    p.poly(ink, [
+      [10, 31],
+      [16, 32],
+      [13, 36],
+      [10, 38],
+      [14, 42],
+      [14, 44],
+      [17, 45],
+      [17, 48],
+      [8, 48],
+      [8, 44],
+      [10, 43],
+      [6, 38],
+      [6, 35],
+    ]);
+    p.poly(skinLight, [
+      [11, 33],
+      [14, 33],
+      [11, 36],
+      [9, 38],
+      [7, 37],
+      [8, 35],
+    ]);
+    p.poly(ivory, [
+      [8, 38],
+      [10, 38],
+      [13, 42],
+      [13, 44],
+      [11, 45],
+      [11, 43],
+    ]);
+    p.rect(sky, 9, 40, 3, 2);
+    p.rect(boots, 9, 44, 7, 3);
+    p.rect('#ffb37a', 9, 44, 4, 1);
+    p.rect('#f0dec4', 9, 47, 8, 1);
+    // Planted right leg stays separated from the swinging left boot.
+    p.poly(ink, [
+      [17, 31],
+      [22, 31],
+      [22, 38],
+      [25, 44],
+      [29, 46],
+      [29, 48],
+      [21, 48],
+      [18, 40],
+      [16, 36],
+    ]);
+    p.poly(skinLight, [
+      [18, 34],
+      [21, 34],
+      [21, 38],
+      [19, 40],
+      [18, 37],
+    ]);
+    p.poly(sockShadow, [
+      [19, 39],
+      [22, 39],
+      [24, 44],
+      [22, 46],
+      [20, 43],
+    ]);
+    p.rect(sky, 20, 40, 3, 2);
+    p.rect(boots, 22, 45, 6, 2);
+    p.rect('#f0dec4', 22, 47, 7, 1);
+  } else if (pose === 'run') {
+    p.poly(ink, [
+      [10, 31],
+      [16, 33],
+      [14, 39],
+      [9, 43],
+      [8, 47],
+      [3, 48],
+      [2, 45],
+      [4, 40],
+      [9, 36],
+    ]);
+    p.poly(skinLight, [
+      [11, 34],
+      [14, 34],
+      [12, 38],
+      [9, 40],
+      [7, 39],
+      [9, 36],
+    ]);
+    p.poly(ivory, [
+      [7, 39],
+      [10, 40],
+      [7, 44],
+      [6, 46],
+      [4, 45],
+      [5, 41],
+    ]);
+    p.rect(sky, 6, 41, 3, 2);
+    p.rect(boots, 3, 45, 6, 2);
+    p.rect('#f0dec4', 3, 47, 5, 1);
+    p.poly(ink, [
+      [17, 31],
+      [22, 32],
+      [23, 37],
+      [28, 39],
+      [29, 43],
+      [25, 45],
+      [20, 41],
+      [17, 37],
+    ]);
+    p.poly(skinLight, [
+      [18, 34],
+      [21, 34],
+      [21, 37],
+      [23, 39],
+      [21, 40],
+      [19, 37],
+    ]);
+    p.poly(sockShadow, [
+      [22, 38],
+      [24, 39],
+      [27, 41],
+      [26, 43],
+      [23, 41],
+      [21, 40],
+    ]);
+    p.rect(boots, 26, 40, 3, 4);
+    p.rect('#f0dec4', 28, 40, 1, 3);
+  } else {
+    p.poly(ink, [
+      [10, 31],
+      [22, 31],
+      [22, 38],
+      [24, 44],
+      [27, 45],
+      [27, 48],
+      [20, 48],
+      [17, 39],
+      [15, 39],
+      [12, 48],
+      [5, 48],
+      [4, 46],
+      [8, 44],
+      [10, 37],
+    ]);
+    p.rect(skinLight, 10, 34, 4, 5);
+    p.rect(skinLight, 18, 34, 4, 5);
+    p.poly(ivory, [
+      [10, 38],
+      [14, 38],
+      [12, 44],
+      [9, 45],
+      [9, 42],
+    ]);
+    p.poly(sockShadow, [
+      [18, 38],
+      [22, 38],
+      [23, 45],
+      [20, 45],
+    ]);
+    p.rect(sky, 10, 39, 3, 2);
+    p.rect(sky, 19, 39, 3, 2);
+    p.rect(boots, 5, 45, 7, 2);
+    p.rect(boots, 21, 45, 6, 2);
+    p.rect('#f0dec4', 5, 47, 7, 1);
+    p.rect('#f0dec4', 21, 47, 6, 1);
+  }
+  p.poly(ink, [
+    [10, 16],
+    [21, 16],
+    [24, 22],
+    [22, 34],
+    [9, 34],
+    [7, 22],
+  ]);
+  p.poly(ivory, [
+    [11, 17],
+    [20, 17],
+    [22, 22],
+    [21, 30],
+    [10, 30],
+    [9, 22],
+  ]);
+  // Argentina-inspired vertical bands; no logos or imported artwork.
+  p.rect(sky, 10, 19, 3, 11);
+  p.rect(sky, 17, 19, 3, 11);
+  p.rect(skyShade, 10, 26, 3, 4);
+  p.rect(skyShade, 17, 28, 3, 2);
+  p.rect('#b9d5d1', 13, 29, 4, 1);
+  p.rect('#152b35', 10, 30, 12, 4);
+  p.rect('#3b5360', 11, 31, 4, 1);
+  p.rect(sky, 20, 31, 2, 3);
+  p.rect('#e6d694', 16, 17, 3, 1);
+  p.rect(ink, 13, 18, 7, 1);
+  // Number 10 is constructed in reading order, independently of limb direction.
+  p.rect('#142e38', 12, 22, 1, 7);
+  p.rect('#142e38', 11, 23, 1, 1);
+  p.rect('#142e38', 11, 28, 3, 1);
+  p.rect('#142e38', 16, 22, 3, 1);
+  p.rect('#142e38', 15, 23, 1, 5);
+  p.rect('#142e38', 19, 23, 1, 5);
+  p.rect('#142e38', 16, 28, 3, 1);
+  if (pose === 'kick') {
+    p.poly(ink, [
+      [10, 18],
+      [11, 22],
+      [7, 25],
+      [2, 24],
+      [0, 21],
+      [0, 18],
+      [3, 21],
+      [6, 22],
+    ]);
+    p.poly(skinLight, [
+      [8, 21],
+      [9, 22],
+      [6, 24],
+      [3, 23],
+      [1, 21],
+      [1, 19],
+      [4, 22],
+      [6, 23],
+    ]);
+    p.poly(ink, [
+      [21, 18],
+      [25, 20],
+      [29, 25],
+      [32, 26],
+      [31, 30],
+      [27, 29],
+      [23, 25],
+      [20, 22],
+    ]);
+    p.poly(skinLight, [
+      [23, 22],
+      [25, 22],
+      [29, 26],
+      [31, 27],
+      [30, 29],
+      [27, 27],
+      [24, 25],
+    ]);
+    p.rect('#6c8276', 27, 25, 2, 2);
+    p.rect('#829588', 29, 27, 1, 2);
+  } else if (pose === 'run') {
+    p.poly(ink, [
+      [9, 18],
+      [11, 21],
+      [8, 27],
+      [4, 25],
+      [2, 21],
+      [4, 18],
+      [6, 19],
+      [5, 22],
+      [7, 23],
+    ]);
+    p.poly(skinLight, [
+      [8, 22],
+      [9, 23],
+      [7, 25],
+      [5, 23],
+      [3, 21],
+      [4, 19],
+      [5, 20],
+      [5, 22],
+    ]);
+    p.poly(ink, [
+      [21, 18],
+      [25, 20],
+      [28, 27],
+      [27, 31],
+      [24, 31],
+      [22, 26],
+      [20, 22],
+    ]);
+    p.poly(skinLight, [
+      [23, 23],
+      [25, 24],
+      [27, 28],
+      [26, 30],
+      [24, 28],
+      [22, 24],
+    ]);
+    p.rect('#6c8276', 25, 26, 2, 2);
+    p.rect('#829588', 25, 29, 1, 1);
+  } else {
+    p.poly(ink, [
+      [9, 18],
+      [11, 22],
+      [7, 28],
+      [6, 33],
+      [2, 32],
+      [3, 25],
+      [6, 20],
+    ]);
+    p.poly(skinLight, [
+      [7, 23],
+      [9, 23],
+      [6, 29],
+      [5, 32],
+      [3, 31],
+      [4, 26],
+    ]);
+    p.poly(ink, [
+      [21, 18],
+      [25, 21],
+      [29, 29],
+      [28, 33],
+      [25, 33],
+      [23, 27],
+      [20, 22],
+    ]);
+    p.poly(skinLight, [
+      [24, 24],
+      [26, 25],
+      [28, 30],
+      [27, 32],
+      [25, 31],
+      [23, 26],
+    ]);
+    p.rect('#6c8276', 25, 27, 2, 2);
+    p.rect('#829588', 26, 30, 1, 1);
+  }
+  p.rect(ivory, 7, 19, 4, 5);
+  p.rect(sky, 8, 20, 2, 3);
+  p.rect(ivory, 21, 19, 4, 5);
+  p.rect(sky, 22, 20, 2, 3);
+  p.rect(ink, 7, 23, 4, 1);
+  p.rect(ink, 21, 23, 4, 1);
+  // A glance over the left shoulder exposes the short haircut and bearded profile.
+  p.poly(ink, [
+    [11, 4],
+    [20, 4],
+    [23, 7],
+    [22, 14],
+    [18, 17],
+    [12, 17],
+    [8, 15],
+    [7, 11],
+    [9, 9],
+    [9, 6],
+  ]);
+  p.poly(skinLight, [
+    [10, 7],
+    [15, 7],
+    [16, 10],
+    [14, 13],
+    [14, 16],
+    [10, 16],
+    [8, 14],
+    [8, 12],
+    [7, 12],
+    [9, 10],
+  ]);
+  p.rect('#c68967', 15, 11, 7, 4);
+  p.rect('#e4af82', 15, 14, 5, 2);
+  p.poly('#263031', [
+    [10, 5],
+    [13, 3],
+    [20, 4],
+    [22, 6],
+    [22, 11],
+    [20, 13],
+    [15, 12],
+    [14, 9],
+    [12, 8],
+    [10, 9],
+  ]);
+  p.rect('#41453e', 13, 5, 7, 2);
+  p.rect('#333d38', 18, 8, 3, 3);
+  p.rect('#eac299', 13, 10, 2, 3);
+  p.rect('#ae7a5e', 14, 11, 1, 2);
+  p.poly('#3a2d2b', [
+    [8, 13],
+    [10, 13],
+    [11, 14],
+    [14, 12],
+    [15, 15],
+    [13, 18],
+    [10, 17],
+    [8, 15],
+  ]);
+  p.rect('#684b3d', 9, 15, 2, 1);
+  p.rect('#dca681', 8, 13, 2, 1);
+  p.rect('#48352c', 9, 9, 3, 1);
+  p.rect('#14282d', 10, 10, 1, 1);
 }
 
 function striker(p: Painter, pose: 'idle' | 'run' | 'kick', supporter = false) {

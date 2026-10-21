@@ -25,3 +25,9 @@ preserves this essential movement while reducing decorative effects.
 For local review only, `?demo=referee` forces the first accepted in-frame shot to
 use this incident. This option is gated by Vite's development mode and is absent
 from the production decision path.
+
+The player character is Messi-inspired and takes a left-footed penalty. His
+run-up starts to the right of the ball and ends with exact left-boot contact.
+The fan's separate right-foot animation is preserved. The keeper waits on the
+chalk goal line at y358, keeps his feet there during anticipation, and returns
+to it after each round. These presentation changes do not affect shot odds.

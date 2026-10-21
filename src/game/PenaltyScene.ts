@@ -7,7 +7,10 @@ import { canvasCopy, resultCopy } from './localization';
 
 const GOAL = { x: 226, y: 154, width: 508, height: 202 };
 const BALL = { x: 492, y: 527 };
-const KEEPER = { x: 480, y: 365 };
+const STRIKER_READY = { x: 548, y: 558 };
+// Messi's left boot: source(9,45), origin(16,48), scale2.5.
+const STRIKER_KICK = { x: BALL.x + 17.5, y: BALL.y + 7.5 };
+const KEEPER = { x: 480, y: 358 };
 const REFEREE = { x: 840, y: 465 };
 const REFEREE_CONTACT_T = 0.62;
 const RUNUP_MS = 650;
@@ -100,7 +103,7 @@ export class PenaltyScene extends Phaser.Scene {
       .setScale(2.5)
       .setDepth(3);
     this.striker = this.add
-      .image(455, 550, 'striker-idle')
+      .image(STRIKER_READY.x, STRIKER_READY.y, 'striker-idle')
       .setOrigin(0.5, 1)
       .setScale(2.5)
       .setDepth(5);
@@ -413,8 +416,9 @@ export class PenaltyScene extends Phaser.Scene {
         .slice(-3)
         .every((p) => Math.abs(p.x - this.history[this.history.length - 1].x) < 0.22);
     const lean = repeated ? (this.history[this.history.length - 1].x - 0.5) * 22 : 0;
-    const breath = this.reducedMotion ? 0 : Math.sin(this.totalTime / 280) * 1.5;
-    this.keeper.setPosition(KEEPER.x + lean, KEEPER.y + breath);
+    const breath = this.reducedMotion ? 0 : Math.sin(this.totalTime / 280) * 0.015;
+    // Breathe from the planted feet: the keeper's baseline stays on the goal line.
+    this.keeper.setPosition(KEEPER.x + lean, KEEPER.y).setScale(2.5, 2.5 + breath);
     if (texture === 'keeper-smoke') {
       this.smokeAccumulator += dt;
       if (this.smokeAccumulator >= (this.reducedMotion ? 600 : 160)) {
@@ -435,7 +439,11 @@ export class PenaltyScene extends Phaser.Scene {
     } else this.smokeAccumulator = 0;
     const reveal = clamp(this.phaseTime / 160, 0, 1);
     this.keeper.setAlpha(reveal);
-    this.striker.setTexture('striker-idle').setPosition(455, 550).setRotation(0).setAlpha(reveal);
+    this.striker
+      .setTexture('striker-idle')
+      .setPosition(STRIKER_READY.x, STRIKER_READY.y)
+      .setRotation(0)
+      .setAlpha(reveal);
     this.ball.setPosition(BALL.x, BALL.y).setScale(2).setRotation(0).setAlpha(reveal);
     if (!this.reducedMotion) this.reticle.setAlpha(0.72 + Math.sin(this.totalTime / 210) * 0.2);
   }
@@ -456,8 +464,8 @@ export class PenaltyScene extends Phaser.Scene {
       t > 0.77 ? 'striker-kick' : Math.floor(t * 9) % 2 ? 'striker-run' : 'striker-idle',
     );
     this.striker.setPosition(
-      lerp(455, 475, t),
-      lerp(550, 534, t) - Math.sin(t * Math.PI * 6) * (t < 0.78 ? 3 : 0),
+      lerp(STRIKER_READY.x, STRIKER_KICK.x, t),
+      lerp(STRIKER_READY.y, STRIKER_KICK.y, t) - Math.sin(t * Math.PI * 6) * (t < 0.78 ? 3 : 0),
     );
     this.striker.setRotation(Math.sin(t * Math.PI) * 0.07);
     if (fanShot) {
@@ -471,16 +479,16 @@ export class PenaltyScene extends Phaser.Scene {
         .setRotation(t > 0.84 ? 0 : Math.sin(t * Math.PI * 8) * 0.04);
       this.striker
         .setTexture('striker-idle')
-        .setPosition(lerp(455, 585, ease(t / 0.55)), lerp(550, 562, ease(t / 0.55)))
+        .setPosition(
+          lerp(STRIKER_READY.x, 585, ease(t / 0.55)),
+          lerp(STRIKER_READY.y, 562, ease(t / 0.55)),
+        )
         .setRotation(0);
     }
     this.keeper.setTexture('keeper-idle').setRotation(0);
     const anticipation =
       !refereeShot && this.shot.outcome === 'predictor' ? ease((t - 0.35) / 0.65) : 0;
-    this.keeper.setPosition(
-      this.keeperStart.x + this.direction * anticipation * 21,
-      KEEPER.y + anticipation * 5,
-    );
+    this.keeper.setPosition(this.keeperStart.x + this.direction * anticipation * 21, KEEPER.y);
     this.keeper.setScale(2.5, 2.5 - anticipation * 0.12);
     if (t >= 1) {
       this.phase = 'flight';
@@ -837,7 +845,8 @@ export class PenaltyScene extends Phaser.Scene {
           )
           .setTexture(Math.floor(seconds * 7) % 2 === 0 ? 'fan-run' : 'fan-kick')
           .setRotation(this.reducedMotion ? 0 : Math.sin(seconds * 10) * 0.055);
-      } else if (!this.reducedMotion) this.striker.y = 534 - Math.abs(Math.sin(seconds * 8)) * 8;
+      } else if (!this.reducedMotion)
+        this.striker.y = STRIKER_KICK.y - Math.abs(Math.sin(seconds * 8)) * 8;
     } else {
       this.rebound.x += (this.rebound.vx * dt) / 1000;
       this.rebound.vy += (510 * dt) / 1000;
@@ -903,7 +912,10 @@ export class PenaltyScene extends Phaser.Scene {
       .setRotation(0)
       .setFlipX(false)
       .setTexture('keeper-idle');
-    this.striker.setPosition(455, 550).setRotation(0).setTexture('striker-idle');
+    this.striker
+      .setPosition(STRIKER_READY.x, STRIKER_READY.y)
+      .setRotation(0)
+      .setTexture('striker-idle');
     this.ball.setPosition(BALL.x, BALL.y).setScale(2).setAlpha(0).setVisible(true);
     this.keeper.setAlpha(0);
     this.striker.setAlpha(0);
@@ -1042,11 +1054,21 @@ export class PenaltyScene extends Phaser.Scene {
     g.fillStyle(0x031a18, 0.33);
     g.fillEllipse(
       this.keeper.x,
-      Math.max(365, this.keeper.y),
+      Math.max(KEEPER.y, this.keeper.y),
       (62 * this.keeper.scaleX) / 2.5,
       (13 * this.keeper.scaleX) / 2.5,
     );
-    g.fillEllipse(this.striker.x, this.shot?.surprise === 'fan' ? 562 : 550, 62, 15);
+    const strikerGroundY =
+      this.phase === 'ready'
+        ? STRIKER_READY.y
+        : this.phase === 'runup'
+          ? this.shot?.surprise === 'fan'
+            ? lerp(STRIKER_READY.y, 562, ease(this.phaseTime / 1100 / 0.55))
+            : lerp(STRIKER_READY.y, STRIKER_KICK.y, clamp(this.phaseTime / RUNUP_MS, 0, 1))
+          : this.shot?.surprise === 'fan'
+            ? 562
+            : STRIKER_KICK.y;
+    g.fillEllipse(this.striker.x, strikerGroundY, 62, 15);
     if (this.fan.visible) g.fillEllipse(this.fan.x, 548, 58, 13);
     g.fillEllipse(this.referee.x, Math.max(this.referee.y, 365), 52, 12);
     const progress =
