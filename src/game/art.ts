@@ -1,0 +1,1038 @@
+import type Phaser from 'phaser';
+
+/** All artwork is original, painted on an integer pixel grid and sampled nearest. */
+export function createArt(scene: Phaser.Scene): void {
+  const make = (key: string, width: number, height: number, paint: (p: Painter) => void) => {
+    if (scene.textures.exists(key)) return;
+    const texture = scene.textures.createCanvas(key, width, height);
+    if (!texture) throw new Error(`Unable to create artwork: ${key}`);
+    const context = texture.getContext();
+    context.imageSmoothingEnabled = false;
+    paint(new Painter(context));
+    if (width <= 32) {
+      const pixels = context.getImageData(0, 0, width, height);
+      for (let i = 3; i < pixels.data.length; i += 4) {
+        pixels.data[i] = pixels.data[i] < 128 ? 0 : 255;
+      }
+      context.putImageData(pixels, 0, 0);
+    }
+    texture.refresh();
+  };
+
+  make('stadium', 960, 600, (p) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 480;
+    canvas.height = 300;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas 2D is unavailable');
+    stadium(new Painter(context));
+    p.ctx.drawImage(canvas, 0, 0, 960, 600);
+  });
+  for (const pose of ['idle', 'dive', 'showoff', 'yawn', 'clap', 'paper'] as const) {
+    make(`keeper-${pose}`, 32, 48, (p) => keeper(p, pose));
+  }
+  for (const pose of ['idle', 'run', 'kick'] as const) {
+    make(`striker-${pose}`, 32, 48, (p) => striker(p, pose));
+  }
+  make('ball', 12, 12, (p) => {
+    p.poly('#091c25', [
+      [4, 0],
+      [8, 0],
+      [11, 3],
+      [12, 7],
+      [9, 11],
+      [3, 12],
+      [0, 8],
+      [0, 4],
+    ]);
+    p.poly('#f5f1d7', [
+      [4, 1],
+      [8, 1],
+      [10, 3],
+      [11, 7],
+      [8, 10],
+      [4, 11],
+      [1, 8],
+      [1, 4],
+    ]);
+    p.poly('#d3dfd4', [
+      [1, 6],
+      [4, 8],
+      [9, 7],
+      [10, 4],
+      [11, 7],
+      [8, 10],
+      [4, 11],
+      [1, 8],
+    ]);
+    p.poly('#183343', [
+      [5, 3],
+      [8, 4],
+      [7, 7],
+      [4, 7],
+      [3, 5],
+    ]);
+    p.rect('#183343', 2, 1, 2, 2);
+    p.rect('#183343', 9, 2, 2, 2);
+    p.rect('#183343', 9, 8, 2, 1);
+    p.rect('#183343', 3, 9, 2, 2);
+    p.rect('#ffffff', 4, 1, 3, 1);
+    p.rect('#ffffff', 1, 4, 1, 2);
+  });
+}
+
+class Painter {
+  constructor(readonly ctx: CanvasRenderingContext2D) {}
+  rect(color: string, x: number, y: number, w: number, h: number) {
+    this.ctx.fillStyle = color;
+    this.ctx.fillRect(x, y, w, h);
+  }
+  poly(color: string, points: number[][]) {
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    points.forEach(([x, y], i) => (i === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y)));
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+  line(color: string, points: number[][], width = 1) {
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = width;
+    this.ctx.beginPath();
+    points.forEach(([x, y], i) =>
+      i === 0 ? this.ctx.moveTo(x + 0.5, y + 0.5) : this.ctx.lineTo(x + 0.5, y + 0.5),
+    );
+    this.ctx.stroke();
+  }
+}
+
+function stadium(p: Painter) {
+  p.rect('#09171f', 0, 0, 480, 300);
+  p.rect('#0d2029', 0, 26, 480, 54);
+  // The roof silhouette and ribs give the arena its own recognisable shape.
+  p.poly('#142e36', [
+    [0, 36],
+    [76, 21],
+    [151, 17],
+    [329, 17],
+    [404, 21],
+    [480, 36],
+    [480, 50],
+    [0, 50],
+  ]);
+  p.line(
+    '#35535a',
+    [
+      [0, 35],
+      [76, 20],
+      [151, 16],
+      [329, 16],
+      [404, 20],
+      [479, 35],
+    ],
+    2,
+  );
+  for (let x = 8; x < 480; x += 29)
+    p.line('#1e3b45', [
+      [x, 34],
+      [240 + (x - 240) * 0.92, 18],
+    ]);
+  p.rect('#08171e', 0, 47, 480, 93);
+  // Ordered pixel clusters, rather than random noise: seats, faces, scarves.
+  const shirts = ['#52716e', '#d1c5a1', '#779083', '#a38c6b', '#3e696b', '#88a2a0'];
+  for (let row = 0; row < 13; row++) {
+    const y = 50 + row * 7;
+    p.rect(row % 2 ? '#10242c' : '#142d34', 0, y + 4, 480, 3);
+    for (let col = 0; col < 69; col++) {
+      const x = col * 7 + (row % 2) * 3;
+      if ((col + row * 3) % 11 === 0) continue;
+      const color = shirts[(col * 3 + row * 5 + Math.floor(col / 9)) % shirts.length];
+      p.rect('#b1a88f', x + 2, y, 2, 2);
+      p.rect(color, x + 1, y + 2, 4, 3);
+      if ((col + row) % 9 === 0) p.rect('#cfdbb4', x, y + 1, 6, 1);
+    }
+  }
+  // Concrete aisles and tier railings remain visible behind the net.
+  for (const x of [35, 96, 179, 301, 384, 445]) {
+    p.poly('#233d43', [
+      [x - 3, 48],
+      [x + 2, 48],
+      [x + 11, 141],
+      [x - 9, 141],
+    ]);
+    for (let y = 54; y < 140; y += 8)
+      p.rect('#3b5454', x - 3 - Math.floor((y - 48) / 19), y, 9 + Math.floor((y - 48) / 9), 1);
+  }
+  p.rect('#071920', 0, 90, 480, 5);
+  p.rect('#3b5657', 0, 90, 480, 1);
+  p.rect('#253f46', 0, 94, 480, 1);
+  p.rect('#091b21', 0, 140, 480, 12);
+  p.rect('#486260', 0, 141, 480, 1);
+  // Hanging home and away pennants.
+  for (const x of [60, 406]) {
+    p.line('#6a8580', [
+      [x, 31],
+      [x, 61],
+    ]);
+    p.poly(x < 200 ? '#d3ec84' : '#da8260', [
+      [x + 1, 32],
+      [x + 19, 34],
+      [x + 16, 46],
+      [x + 1, 44],
+    ]);
+    p.rect('#173b3e', x + 5, 35, 4, 8);
+    p.rect('#173b3e', x + 12, 36, 3, 7);
+  }
+  // A pair of floodlight gantries, with discrete pool-of-light polygons.
+  for (const side of [0, 1]) {
+    const x = side === 0 ? 15 : 423;
+    p.poly(
+      'rgba(185,217,179,0.045)',
+      side === 0
+        ? [
+            [19, 12],
+            [57, 12],
+            [288, 231],
+            [89, 210],
+          ]
+        : [
+            [423, 12],
+            [461, 12],
+            [390, 210],
+            [192, 231],
+          ],
+    );
+    p.rect('#09202a', x - 2, 2, 46, 17);
+    p.rect('#5c7474', x, 3, 42, 13);
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 7; col++) {
+        p.rect('#afcbb7', x + col * 6 + 1, row * 6 + 4, 4, 4);
+        p.rect('#edf3c7', x + col * 6 + 1, row * 6 + 4, 4, 2);
+      }
+    }
+    p.rect('#e8f1c9', x, 18, 42, 1);
+  }
+  // Crisp advertising panels. Their graphic patterns intentionally contain no UI text.
+  p.rect('#081c22', 0, 152, 480, 21);
+  for (let i = 0; i < 8; i++) {
+    const x = i * 61;
+    p.rect(i % 2 ? '#d4dfb4' : '#1b4747', x + 2, 154, 57, 15);
+    for (let n = 0; n < 4; n++) {
+      const c = i % 2 ? '#214840' : '#b4d487';
+      p.poly(c, [
+        [x + 7 + n * 12, 158],
+        [x + 13 + n * 12, 158],
+        [x + 9 + n * 12, 165],
+        [x + 3 + n * 12, 165],
+      ]);
+    }
+  }
+  // Alternating mowing bands widen naturally toward the near touchline.
+  p.rect('#164e3d', 0, 173, 480, 127);
+  const bands = [173, 181, 192, 206, 224, 246, 274, 300];
+  bands
+    .slice(0, -1)
+    .forEach((y, index) =>
+      p.rect(index % 2 ? '#1b5c45' : '#18543f', 0, y, 480, bands[index + 1] - y),
+    );
+  p.poly('#1f6248', [
+    [194, 173],
+    [286, 173],
+    [390, 300],
+    [90, 300],
+  ]);
+  for (let row = 0; row < 11; row++) {
+    const y = 180 + row * row;
+    if (y > 298) break;
+    for (let col = 0; col < 27; col++) {
+      const x = (col * 23 + row * 17) % 480;
+      p.rect(row % 2 ? '#21664b' : '#236449', x, y, 2 + Math.floor(row / 4), 1);
+      if (row > 5) p.rect('#164d3d', x + 3, y + 2, 2, 1);
+    }
+  }
+  // Penalty area and six-yard box: hand-stepped boundaries, no antialiased curves.
+  p.line(
+    '#97b796',
+    [
+      [121, 179],
+      [99, 201],
+      [381, 201],
+      [359, 179],
+    ],
+    2,
+  );
+  p.line(
+    '#a7c5a0',
+    [
+      [76, 179],
+      [12, 251],
+      [468, 251],
+      [404, 179],
+    ],
+    2,
+  );
+  p.line('#486f51', [
+    [12, 254],
+    [468, 254],
+  ]);
+  p.rect('#c8d6aa', 243, 262, 6, 2);
+  p.line(
+    '#9bbb95',
+    [
+      [162, 252],
+      [170, 260],
+      [186, 267],
+      [208, 272],
+      [239, 274],
+      [270, 272],
+      [292, 267],
+      [308, 260],
+      [316, 252],
+    ],
+    2,
+  );
+  // Goal box shadow, back wall and return edges establish depth behind the frame.
+  p.poly('#0d352f', [
+    [112, 77],
+    [368, 77],
+    [356, 174],
+    [124, 174],
+  ]);
+  p.poly('#17453b', [
+    [113, 77],
+    [125, 86],
+    [355, 86],
+    [367, 77],
+  ]);
+  p.poly('#143e35', [
+    [113, 77],
+    [125, 86],
+    [125, 173],
+    [113, 179],
+  ]);
+  p.poly('#103c34', [
+    [367, 77],
+    [355, 86],
+    [355, 173],
+    [367, 179],
+  ]);
+  p.rect('#184b3b', 125, 86, 230, 88);
+  // Net knots and slack bottom seam. Low contrast keeps ball and hands readable.
+  for (let x = 125; x <= 355; x += 10)
+    p.line('#38685a', [
+      [x, 86],
+      [x, 173],
+    ]);
+  for (let y = 86; y <= 173; y += 9)
+    p.line('#38685a', [
+      [125, y],
+      [355, y],
+    ]);
+  for (let x = 125; x <= 355; x += 10)
+    p.line('#416e5c', [
+      [113 + ((x - 125) * 254) / 230, 77],
+      [x, 86],
+    ]);
+  for (let y = 86; y <= 173; y += 9) {
+    p.line('#416e5c', [
+      [113, 77 + ((y - 86) * 101) / 87],
+      [125, y],
+    ]);
+    p.line('#416e5c', [
+      [367, 77 + ((y - 86) * 101) / 87],
+      [355, y],
+    ]);
+  }
+  p.line('#60917a', [
+    [114, 178],
+    [125, 174],
+    [355, 174],
+    [366, 178],
+  ]);
+  // Heavy frame outline, cool shadow edge and warm floodlit face.
+  p.rect('#09252b', 107, 71, 266, 7);
+  p.rect('#09252b', 107, 73, 7, 107);
+  p.rect('#09252b', 367, 73, 7, 107);
+  p.rect('#89a9a0', 109, 74, 4, 105);
+  p.rect('#89a9a0', 367, 74, 4, 105);
+  p.rect('#d9eadb', 109, 72, 262, 4);
+  p.rect('#f0f2d9', 109, 72, 262, 2);
+  p.rect('#edf0d4', 109, 74, 2, 105);
+  p.rect('#edf0d4', 367, 74, 2, 105);
+  p.rect('#335d52', 111, 179, 9, 2);
+  p.rect('#335d52', 369, 179, 10, 2);
+  // Foreground blades soften the stage edge while retaining crisp pixel clusters.
+  for (let x = 1; x < 480; x += 11) {
+    p.rect('#113f35', x, 298, 5, 2);
+    p.rect('#164b39', x + 3, 296, 2, 2);
+  }
+}
+
+type KeeperPose = 'idle' | 'dive' | 'showoff' | 'yawn' | 'clap' | 'paper';
+const outline = '#11252a';
+const orange = '#f38b39';
+const orangeLight = '#ffbc58';
+const orangeShade = '#be4e2f';
+const skin = '#edaf7d';
+
+function glove(p: Painter, x: number, y: number) {
+  p.poly(outline, [
+    [x - 3, y - 3],
+    [x + 2, y - 3],
+    [x + 3, y - 1],
+    [x + 3, y + 2],
+    [x, y + 4],
+    [x - 3, y + 2],
+  ]);
+  p.rect('#e7f0cc', x - 2, y - 2, 4, 5);
+  p.rect('#ffffff', x - 2, y - 2, 3, 2);
+  p.rect('#5a8a8a', x - 2, y + 2, 4, 1);
+}
+
+function keeper(p: Painter, pose: KeeperPose) {
+  const reaching = pose === 'dive' || pose === 'showoff';
+  // Boots and socks have distinct silhouettes for each pose.
+  if (pose === 'dive') {
+    p.poly(outline, [
+      [12, 30],
+      [19, 31],
+      [17, 39],
+      [23, 42],
+      [22, 46],
+      [17, 46],
+      [11, 40],
+    ]);
+    p.poly(orangeShade, [
+      [13, 33],
+      [17, 34],
+      [14, 39],
+      [20, 42],
+      [18, 44],
+      [11, 40],
+    ]);
+    p.rect('#dfdfc3', 19, 42, 5, 3);
+    p.poly(outline, [
+      [9, 29],
+      [14, 33],
+      [10, 39],
+      [7, 44],
+      [1, 44],
+      [1, 41],
+      [6, 39],
+    ]);
+    p.poly(orange, [
+      [10, 31],
+      [13, 33],
+      [8, 40],
+      [5, 41],
+      [5, 39],
+    ]);
+    p.rect('#e2e5cf', 1, 41, 6, 2);
+  } else {
+    p.poly(outline, [
+      [10, 31],
+      [22, 31],
+      [22, 38],
+      [25, 44],
+      [28, 45],
+      [28, 48],
+      [20, 48],
+      [17, 37],
+      [15, 37],
+      [12, 48],
+      [4, 48],
+      [4, 45],
+      [8, 44],
+      [9, 37],
+    ]);
+    p.poly(orangeShade, [
+      [10, 34],
+      [15, 34],
+      [13, 42],
+      [9, 44],
+      [8, 43],
+    ]);
+    p.poly(orange, [
+      [17, 34],
+      [21, 34],
+      [21, 39],
+      [24, 44],
+      [20, 44],
+    ]);
+    p.rect('#f4c56c', 10, 39, 3, 4);
+    p.rect('#f4c56c', 20, 40, 3, 4);
+    p.rect('#e3e8cc', 5, 45, 7, 2);
+    p.rect('#e3e8cc', 21, 45, 6, 2);
+  }
+  p.poly(outline, [
+    [10, 17],
+    [21, 17],
+    [24, 23],
+    [22, 34],
+    [9, 34],
+    [7, 23],
+  ]);
+  p.poly(orange, [
+    [11, 18],
+    [20, 18],
+    [22, 23],
+    [20, 31],
+    [11, 31],
+    [9, 23],
+  ]);
+  p.poly(orangeShade, [
+    [9, 23],
+    [12, 24],
+    [13, 30],
+    [20, 30],
+    [20, 33],
+    [10, 33],
+  ]);
+  p.rect(orangeLight, 12, 19, 8, 2);
+  p.rect('#ffd36a', 18, 22, 2, 5);
+  p.rect('#142f35', 13, 29, 7, 2);
+  p.rect('#ffe1a0', 13, 18, 6, 2);
+  p.rect('#18353a', 14, 18, 4, 1);
+  // Arms have outlined elbows, contrasting cuff bands, and individual gloves.
+  if (reaching) {
+    p.poly(outline, [
+      [20, 18],
+      [23, 16],
+      [24, 11],
+      [29, 10],
+      [29, 16],
+      [25, 23],
+      [22, 24],
+    ]);
+    p.poly(orangeLight, [
+      [21, 19],
+      [24, 16],
+      [25, 13],
+      [27, 14],
+      [25, 20],
+      [22, 22],
+    ]);
+    glove(p, 27, 12);
+    if (pose === 'dive') {
+      p.poly(outline, [
+        [10, 18],
+        [10, 23],
+        [5, 25],
+        [1, 23],
+        [1, 18],
+        [5, 18],
+      ]);
+      p.poly(orange, [
+        [9, 19],
+        [9, 22],
+        [5, 23],
+        [3, 21],
+        [4, 19],
+      ]);
+      glove(p, 3, 19);
+    } else {
+      p.poly(outline, [
+        [10, 18],
+        [10, 23],
+        [7, 26],
+        [11, 28],
+        [10, 32],
+        [3, 29],
+        [3, 24],
+        [6, 19],
+      ]);
+      p.poly(orange, [
+        [8, 20],
+        [9, 22],
+        [6, 26],
+        [10, 29],
+        [8, 30],
+        [4, 27],
+      ]);
+      glove(p, 10, 29);
+    }
+  } else if (pose === 'clap') {
+    p.poly(outline, [
+      [9, 19],
+      [12, 21],
+      [13, 25],
+      [18, 25],
+      [20, 20],
+      [23, 21],
+      [22, 29],
+      [10, 30],
+      [6, 24],
+    ]);
+    p.poly(orangeLight, [
+      [8, 21],
+      [10, 21],
+      [12, 26],
+      [19, 26],
+      [21, 22],
+      [22, 23],
+      [21, 28],
+      [11, 28],
+    ]);
+    glove(p, 14, 25);
+    glove(p, 18, 24);
+  } else if (pose === 'yawn') {
+    p.poly(outline, [
+      [8, 18],
+      [12, 20],
+      [9, 25],
+      [3, 24],
+      [3, 16],
+      [10, 10],
+      [13, 13],
+      [7, 18],
+      [7, 21],
+    ]);
+    p.poly(orange, [
+      [8, 20],
+      [10, 21],
+      [8, 23],
+      [5, 22],
+      [5, 17],
+      [10, 12],
+      [11, 14],
+      [7, 18],
+    ]);
+    glove(p, 12, 13);
+    p.poly(outline, [
+      [21, 19],
+      [25, 22],
+      [25, 31],
+      [21, 32],
+      [20, 25],
+    ]);
+    p.rect(orange, 22, 22, 2, 8);
+    glove(p, 23, 32);
+  } else if (pose === 'paper') {
+    p.poly(outline, [
+      [8, 19],
+      [11, 21],
+      [8, 28],
+      [3, 26],
+      [3, 22],
+    ]);
+    p.poly(orange, [
+      [7, 21],
+      [9, 22],
+      [7, 26],
+      [5, 25],
+      [5, 22],
+    ]);
+    p.poly(outline, [
+      [21, 19],
+      [25, 21],
+      [28, 25],
+      [24, 29],
+      [20, 24],
+    ]);
+    p.poly(orange, [
+      [22, 21],
+      [24, 22],
+      [26, 25],
+      [24, 27],
+      [21, 24],
+    ]);
+    p.poly('#a6b9b1', [
+      [5, 23],
+      [15, 24],
+      [26, 22],
+      [25, 33],
+      [15, 35],
+      [5, 33],
+    ]);
+    p.poly('#e0dfbf', [
+      [6, 24],
+      [15, 25],
+      [25, 23],
+      [24, 32],
+      [15, 34],
+      [6, 32],
+    ]);
+    p.line('#8d9d8f', [
+      [15, 26],
+      [15, 33],
+    ]);
+    p.rect('#687e75', 7, 26, 6, 2);
+    p.rect('#a7ad95', 7, 29, 6, 1);
+    p.rect('#a7ad95', 7, 31, 6, 1);
+    p.rect('#687e75', 17, 25, 6, 1);
+    p.rect('#a7ad95', 17, 28, 6, 1);
+    p.rect('#a7ad95', 17, 30, 6, 1);
+    glove(p, 5, 27);
+    glove(p, 26, 27);
+  } else {
+    p.poly(outline, [
+      [9, 18],
+      [11, 22],
+      [7, 27],
+      [5, 32],
+      [1, 31],
+      [3, 23],
+      [6, 19],
+    ]);
+    p.poly(orange, [
+      [8, 20],
+      [9, 22],
+      [6, 26],
+      [5, 29],
+      [3, 28],
+      [5, 23],
+    ]);
+    p.poly(outline, [
+      [21, 18],
+      [25, 20],
+      [29, 28],
+      [29, 32],
+      [25, 33],
+      [23, 27],
+      [20, 23],
+    ]);
+    p.poly(orangeLight, [
+      [22, 20],
+      [24, 22],
+      [27, 28],
+      [25, 30],
+      [23, 25],
+      [21, 22],
+    ]);
+    glove(p, 3, 31);
+    glove(p, 27, 31);
+  }
+  // Dark swept hair, ears, nose highlight and the keeper's signature raised brow.
+  p.poly(outline, [
+    [12, 4],
+    [20, 4],
+    [23, 8],
+    [22, 15],
+    [19, 19],
+    [13, 18],
+    [10, 14],
+    [10, 8],
+  ]);
+  p.rect('#c9825f', 10, 10, 13, 4);
+  p.poly(skin, [
+    [12, 7],
+    [20, 7],
+    [21, 12],
+    [19, 17],
+    [14, 17],
+    [12, 14],
+  ]);
+  p.rect('#ffc893', 13, 8, 6, 3);
+  p.poly('#172b2e', [
+    [11, 5],
+    [14, 3],
+    [21, 4],
+    [23, 7],
+    [22, 9],
+    [19, 8],
+    [18, 6],
+    [15, 8],
+    [12, 8],
+    [12, 12],
+    [11, 11],
+  ]);
+  p.rect('#502e29', 13, 10, 3, 1);
+  p.rect('#502e29', 18, 9, 3, 1);
+  p.rect('#172b2e', 14, 11, 1, 1);
+  p.rect('#172b2e', 19, 11, 1, 1);
+  p.rect('#d18c65', 16, 12, 2, 2);
+  if (pose === 'yawn') {
+    p.rect('#763d32', 16, 14, 3, 3);
+  } else {
+    p.rect('#7c4b39', 15, 15, 5, 1);
+    p.rect('#f9e5ba', 17, 15, 3, 1);
+  }
+}
+
+function striker(p: Painter, pose: 'idle' | 'run' | 'kick') {
+  const blue = '#548cdf';
+  const pale = '#bddcde';
+  // Back-view player, recognisable by a cobalt shirt, white socks and scarlet boots.
+  if (pose === 'kick') {
+    p.poly(outline, [
+      [10, 31],
+      [17, 32],
+      [15, 40],
+      [13, 45],
+      [6, 47],
+      [3, 46],
+      [4, 43],
+      [9, 41],
+    ]);
+    p.poly(pale, [
+      [11, 34],
+      [15, 35],
+      [13, 41],
+      [10, 44],
+      [7, 44],
+    ]);
+    p.rect('#cb5d47', 4, 44, 8, 2);
+    p.poly(outline, [
+      [17, 30],
+      [22, 31],
+      [26, 36],
+      [25, 40],
+      [22, 43],
+      [25, 44],
+      [25, 47],
+      [18, 47],
+      [17, 44],
+      [21, 38],
+      [17, 36],
+    ]);
+    p.poly(pale, [
+      [19, 33],
+      [21, 33],
+      [24, 36],
+      [24, 39],
+      [21, 43],
+      [19, 44],
+      [19, 42],
+      [22, 38],
+      [19, 36],
+    ]);
+    p.rect('#e57c51', 18, 44, 7, 2);
+    p.rect('#f3a568', 21, 44, 4, 1);
+  } else if (pose === 'run') {
+    p.poly(outline, [
+      [10, 31],
+      [16, 32],
+      [14, 38],
+      [8, 40],
+      [7, 44],
+      [2, 44],
+      [2, 40],
+      [9, 35],
+    ]);
+    p.poly(pale, [
+      [11, 34],
+      [14, 34],
+      [12, 37],
+      [7, 39],
+      [5, 42],
+      [3, 41],
+      [5, 38],
+    ]);
+    p.rect('#e37554', 2, 42, 6, 2);
+    p.poly(outline, [
+      [17, 31],
+      [22, 32],
+      [23, 41],
+      [27, 45],
+      [26, 48],
+      [20, 47],
+      [17, 39],
+    ]);
+    p.poly(pale, [
+      [18, 35],
+      [21, 35],
+      [21, 41],
+      [24, 44],
+      [22, 46],
+      [19, 42],
+    ]);
+    p.rect('#d45d45', 22, 44, 5, 3);
+  } else {
+    p.poly(outline, [
+      [10, 31],
+      [22, 31],
+      [22, 38],
+      [24, 44],
+      [27, 45],
+      [27, 48],
+      [20, 48],
+      [17, 38],
+      [15, 38],
+      [12, 48],
+      [5, 48],
+      [4, 46],
+      [8, 44],
+      [10, 37],
+    ]);
+    p.poly(pale, [
+      [11, 35],
+      [14, 35],
+      [12, 44],
+      [9, 45],
+      [9, 42],
+    ]);
+    p.poly(pale, [
+      [18, 35],
+      [21, 35],
+      [21, 40],
+      [23, 45],
+      [20, 45],
+    ]);
+    p.rect('#5a86b7', 10, 39, 3, 2);
+    p.rect('#5a86b7', 19, 39, 3, 2);
+    p.rect('#e37b52', 5, 45, 7, 2);
+    p.rect('#e37b52', 21, 45, 6, 2);
+  }
+  p.poly(outline, [
+    [10, 16],
+    [21, 16],
+    [24, 22],
+    [22, 34],
+    [9, 34],
+    [7, 22],
+  ]);
+  p.poly(blue, [
+    [11, 17],
+    [20, 17],
+    [22, 22],
+    [21, 29],
+    [10, 29],
+    [9, 22],
+  ]);
+  p.poly('#3762a8', [
+    [10, 20],
+    [12, 21],
+    [12, 27],
+    [21, 27],
+    [21, 31],
+    [10, 31],
+  ]);
+  p.rect('#172e48', 10, 30, 12, 4);
+  p.rect('#729bd1', 11, 18, 9, 2);
+  p.rect('#ceded4', 14, 21, 5, 1);
+  p.rect('#ceded4', 14, 22, 1, 3);
+  p.rect('#ceded4', 18, 22, 1, 6);
+  p.rect('#ceded4', 14, 24, 5, 1);
+  p.rect('#ceded4', 15, 27, 4, 1);
+  if (pose === 'kick') {
+    p.poly(outline, [
+      [10, 18],
+      [10, 23],
+      [5, 25],
+      [0, 22],
+      [0, 18],
+      [4, 21],
+    ]);
+    p.poly(skin, [
+      [7, 21],
+      [9, 22],
+      [5, 23],
+      [1, 21],
+      [1, 19],
+      [4, 22],
+    ]);
+    p.poly(outline, [
+      [21, 18],
+      [25, 19],
+      [29, 25],
+      [32, 26],
+      [31, 30],
+      [27, 29],
+      [22, 24],
+    ]);
+    p.poly(skin, [
+      [23, 21],
+      [25, 21],
+      [29, 26],
+      [31, 27],
+      [30, 29],
+      [27, 27],
+    ]);
+  } else if (pose === 'run') {
+    p.poly(outline, [
+      [9, 18],
+      [12, 21],
+      [8, 27],
+      [3, 24],
+      [2, 20],
+      [5, 19],
+      [6, 23],
+    ]);
+    p.poly(skin, [
+      [8, 22],
+      [9, 23],
+      [7, 25],
+      [4, 23],
+      [3, 20],
+      [5, 20],
+      [6, 23],
+    ]);
+    p.poly(outline, [
+      [21, 18],
+      [25, 20],
+      [28, 28],
+      [24, 31],
+      [20, 26],
+    ]);
+    p.poly(skin, [
+      [23, 22],
+      [25, 23],
+      [26, 28],
+      [24, 29],
+      [22, 25],
+    ]);
+  } else {
+    p.poly(outline, [
+      [9, 18],
+      [11, 22],
+      [7, 28],
+      [6, 33],
+      [2, 32],
+      [3, 25],
+      [6, 20],
+    ]);
+    p.poly(skin, [
+      [7, 23],
+      [9, 23],
+      [6, 29],
+      [5, 32],
+      [3, 31],
+      [4, 26],
+    ]);
+    p.poly(outline, [
+      [21, 18],
+      [25, 21],
+      [29, 29],
+      [28, 33],
+      [25, 33],
+      [23, 27],
+      [20, 22],
+    ]);
+    p.poly(skin, [
+      [24, 24],
+      [26, 25],
+      [28, 30],
+      [27, 32],
+      [25, 31],
+      [23, 26],
+    ]);
+  }
+  p.rect(blue, 7, 19, 4, 5);
+  p.rect('#80ade4', 21, 19, 4, 5);
+  // Back of the head: shaved nape, angular dark hair and one lit ear.
+  p.poly(outline, [
+    [12, 4],
+    [20, 4],
+    [23, 8],
+    [22, 14],
+    [19, 17],
+    [13, 17],
+    [10, 13],
+    [10, 8],
+  ]);
+  p.rect('#d89a70', 11, 10, 11, 4);
+  p.rect('#edb27c', 12, 13, 8, 3);
+  p.poly('#263335', [
+    [11, 6],
+    [13, 3],
+    [20, 4],
+    [22, 6],
+    [22, 11],
+    [20, 13],
+    [13, 12],
+    [11, 11],
+  ]);
+  p.rect('#43514a', 13, 5, 6, 2);
+  p.rect('#33423f', 18, 7, 3, 4);
+  p.rect('#e8b17b', 21, 10, 1, 3);
+  p.rect('#a16954', 14, 15, 5, 1);
+}
