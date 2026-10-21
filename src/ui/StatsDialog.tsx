@@ -2,10 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Stats } from '../core/model';
 import type { Language } from '../core/i18n';
 import { uiText } from './localization';
+import type { AchievementId } from '../core/achievements';
+import { AchievementList } from './Achievements';
 
 interface StatsDialogProps {
   language: Language;
   stats: Stats;
+  achievements: AchievementId[];
   reducedMotion: boolean;
   onReducedMotion: (value: boolean) => void;
   onReset: () => void;
@@ -15,6 +18,7 @@ interface StatsDialogProps {
 export function StatsDialog({
   language,
   stats,
+  achievements,
   reducedMotion,
   onReducedMotion,
   onReset,
@@ -53,7 +57,8 @@ export function StatsDialog({
     return () => {
       document.body.style.overflow = originalOverflow;
       document.removeEventListener('keydown', onKey);
-      previous?.focus();
+      if (previous?.isConnected) previous.focus();
+      else document.querySelector<HTMLElement>('.stadium-shell')?.focus({ preventScroll: true });
     };
   }, [onClose]);
 
@@ -128,6 +133,7 @@ export function StatsDialog({
             </dd>
           </div>
         </dl>
+        <AchievementList language={language} unlocked={achievements} />
         <label className="motion-option">
           <span>
             <strong>{t.reducedMotion}</strong>
@@ -142,7 +148,11 @@ export function StatsDialog({
         <div className="reset-area">
           {confirmReset ? (
             <>
-              <p>{t.resetQuestion}</p>
+              <p>
+                {language === 'ru'
+                  ? 'Удалить всю статистику и достижения? Отменить это действие нельзя.'
+                  : 'Erase all statistics and achievements? This cannot be undone.'}
+              </p>
               <div className="reset-actions">
                 <button
                   className="danger-button"
@@ -170,6 +180,13 @@ export function StatsDialog({
             >
               {t.reset}
             </button>
+          )}
+          {!confirmReset && (
+            <p className="achievement-reset-hint">
+              {language === 'ru'
+                ? 'Статистика и все достижения будут сброшены.'
+                : 'Statistics and all achievements will be reset.'}
+            </p>
           )}
         </div>
         <button className="primary-button" onClick={onClose}>

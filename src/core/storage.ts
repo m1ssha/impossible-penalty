@@ -1,15 +1,18 @@
 import { defaultLanguage, type Language } from './i18n';
 import { emptyStats, type Stats } from './model';
+import { normalizeAchievements, type AchievementId } from './achievements';
 export interface SavedData {
   stats: Stats;
   sound: boolean;
   language: Language;
   reducedMotion: boolean;
+  achievements: AchievementId[];
 }
 const KEY = 'impossible-penalty:v1';
 function defaults(): SavedData {
   return {
     stats: emptyStats(),
+    achievements: [],
     sound: false,
     language: defaultLanguage(),
     reducedMotion:
@@ -43,8 +46,10 @@ export function loadData(): SavedData {
       rawStats && typeof rawStats === 'object' && !('misses' in rawStats)
         ? { ...rawStats, misses: 0 }
         : rawStats;
+    const stats = validStats(migratedStats) ? migratedStats : fallback.stats;
     return {
-      stats: validStats(migratedStats) ? migratedStats : fallback.stats,
+      stats,
+      achievements: normalizeAchievements(d.achievements, stats),
       language: d.language === 'en' || d.language === 'ru' ? d.language : fallback.language,
       sound: typeof d.sound === 'boolean' ? d.sound : fallback.sound,
       reducedMotion:

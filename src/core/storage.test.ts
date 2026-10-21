@@ -13,6 +13,7 @@ describe('persistent session', () => {
   afterEach(() => vi.unstubAllGlobals());
   it('roundtrips stats and settings', () => {
     const value = {
+      achievements: ['first-goal' as const],
       stats: recordShot(emptyStats(), 'goal'),
       sound: true,
       language: 'en' as const,
@@ -45,6 +46,7 @@ describe('persistent session', () => {
     expect(
       saveData({
         stats: emptyStats(),
+        achievements: [],
         sound: false,
         language: 'en' as const,
         reducedMotion: false,
@@ -77,6 +79,7 @@ describe('persistent session', () => {
   });
   it('roundtrips misses and rejects a broken miss invariant', () => {
     const value = {
+      achievements: [],
       stats: recordShot(emptyStats(), 'miss'),
       sound: false,
       language: 'en' as const,
@@ -93,6 +96,7 @@ describe('persistent session', () => {
   it('saves Russian choice and migrates missing language from browser', () => {
     const value = {
       stats: emptyStats(),
+      achievements: [],
       sound: false,
       reducedMotion: false,
       language: 'ru' as const,
@@ -102,6 +106,21 @@ describe('persistent session', () => {
     vi.stubGlobal('navigator', { language: 'ru-RU' });
     data.set('impossible-penalty:v1', JSON.stringify({ stats: emptyStats(), sound: true }));
     expect(loadData().language).toBe('ru');
+  });
+  it('migrates goal achievements and preserves special badges on reload', () => {
+    data.set(
+      'impossible-penalty:v1',
+      JSON.stringify({
+        stats: { shots: 5, goals: 5, saves: 0, misses: 0, streak: 0, bestStreak: 0 },
+      }),
+    );
+    expect(loadData().achievements).toEqual(['first-goal', 'five-goals']);
+    const value = {
+      ...loadData(),
+      achievements: ['first-goal', 'five-goals', 'fan-goal'] as const,
+    };
+    expect(saveData({ ...value, achievements: [...value.achievements] })).toBe(true);
+    expect(loadData().achievements).toEqual(value.achievements);
   });
   it('rejects unsupported saved language', () => {
     vi.stubGlobal('navigator', { language: 'en-US' });

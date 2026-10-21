@@ -77,3 +77,12 @@ npm run test:e2e
 GitHub Actions устанавливает зависимости из lockfile, запускает ESLint, Prettier, TypeScript, Vitest, production-сборку и Playwright. При ошибке сохраняет результаты Playwright в артефактах. CI не публикует игру и не настраивает GitHub Pages.
 
 Фактический успешный запуск определяется результатами команд и статусом workflow для конкретного коммита. Этот документ описывает стратегию проверки; не подменяет журнал запуска и не заявляет неподтверждённую совместимость. Chromium, Firefox и WebKit в Playwright покрывают основные движки; настоящий Safari на macOS/iOS и реальные мобильные устройства требуют отдельного прогона.
+
+## Fullscreen and achievements
+
+Unit tests cover goal milestones, comeback streak boundaries, simultaneous fan
+unlocks, duplicate suppression, corrupted badge data and legacy storage migration.
+Browser checks cover native fullscreen where supported, unsupported/denied API
+fallback, exit and keyboard input, canvas proportions, modal access, badge
+notifications, persistence and reset. Physical mobile Safari remains a separate
+device check; Playwright WebKit is not an iPhone hardware test.

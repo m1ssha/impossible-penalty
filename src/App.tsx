@@ -9,6 +9,9 @@ import { loadData, saveData } from './core/storage';
 import { createGame } from './game/createGame';
 import { config } from './config';
 import { StatsDialog } from './ui/StatsDialog';
+import { FullscreenButton } from './ui/FullscreenButton';
+import { AchievementToast } from './ui/Achievements';
+import { unlockAchievements, type AchievementId } from './core/achievements';
 
 type GameHandle = ReturnType<typeof createGame>;
 
@@ -42,6 +45,12 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>('ready');
   const [remark, setRemark] = useState('GO ON. PICK A CORNER.');
   const [statsOpen, setStatsOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [toastQueue, setToastQueue] = useState<AchievementId[]>([]);
+  const previousAchievements = useRef(data.achievements);
+  const matchRef = useRef<HTMLElement>(null);
+  const pitchRef = useRef<HTMLDivElement>(null);
+  const dismissAchievement = useCallback(() => setToastQueue((previous) => previous.slice(1)), []);
   const [storageAvailable, setStorageAvailable] = useState(true);
   const [gameError, setGameError] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -78,7 +87,11 @@ export default function App() {
                         ? 'announceGoal'
                         : 'announceSave',
           );
-          setData((previous) => ({ ...previous, stats: recordShot(previous.stats, shot.outcome) }));
+          setData((previous) => ({
+            ...previous,
+            stats: recordShot(previous.stats, shot.outcome),
+            achievements: unlockAchievements(previous.achievements, previous.stats, shot),
+          }));
         },
         onSound: (event) => audio.play(event),
         onRemark: setRemark,
@@ -114,6 +127,29 @@ export default function App() {
     };
   }, [data]);
 
+  useEffect(() => {
+    const newIds = data.achievements.filter((id) => !previousAchievements.current.includes(id));
+    previousAchievements.current = data.achievements;
+    if (newIds.length === 0 && data.achievements.length !== 0) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (active)
+        setToastQueue((previous) =>
+          data.achievements.length === 0 ? [] : [...previous, ...newIds],
+        );
+    });
+    return () => {
+      active = false;
+    };
+  }, [data.achievements]);
+
+  const activeAchievement = toastQueue[0];
+  useEffect(() => {
+    if (!activeAchievement) return;
+    const timer = window.setTimeout(dismissAchievement, 4000);
+    return () => clearTimeout(timer);
+  }, [activeAchievement, dismissAchievement]);
+
   function onGameKey(event: KeyboardEvent<HTMLDivElement>) {
     if (statsOpen) return;
     const directions: Record<string, [number, number]> = {
@@ -143,10 +179,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <p className="shot-announcement sr-only" aria-live="polite" aria-atomic="true">
-        {announcement ? t[announcement] : ''}
-      </p>
-      <header className="masthead">
+      <header className="masthead" inert={fullscreen}>
         <a
           className="wordmark"
           href={config.repositoryUrl}
@@ -198,7 +231,7 @@ export default function App() {
         </nav>
       </header>
 
-      <section className="hero" aria-labelledby="game-title">
+      <section className="hero" aria-labelledby="game-title" inert={fullscreen}>
         <div className="hero-copy">
           <div className="eyebrow match-label">
             <span className="live-dot" /> {t.nightMatch}
@@ -231,16 +264,67 @@ export default function App() {
         </div>
       </section>
 
-      <section className="match-section" aria-label={t.penaltyGame}>
+      <section
+        ref={matchRef}
+        className={`match-section ${fullscreen ? 'is-fullscreen' : ''}`}
+        aria-label={t.penaltyGame}
+      >
+        <p className="shot-announcement sr-only" aria-live="polite" aria-atomic="true">
+          {announcement ? t[announcement] : ''}
+        </p>
         <div className="pitch-topline">
           <span>
-            <span className="square-dot" /> {t.liveSpot}
+            <span className="square-dot" /> <span className="pitch-live-label">{t.liveSpot}</span>
           </span>
-          <span className="match-number">
-            {t.attempt} {String(data.stats.shots + 1).padStart(3, '0')}
-          </span>
+          <div className="pitch-tools">
+            <span className="match-number">
+              {t.attempt} {String(data.stats.shots + 1).padStart(3, '0')}
+            </span>
+            {fullscreen && (
+              <>
+                <button
+                  type="button"
+                  className="pitch-control"
+                  aria-label={t.switchLanguage}
+                  onClick={() =>
+                    setData((previous) => ({
+                      ...previous,
+                      language: previous.language === 'en' ? 'ru' : 'en',
+                    }))
+                  }
+                >
+                  {t.languageCode}
+                </button>
+                <button
+                  type="button"
+                  className="pitch-control"
+                  onClick={toggleSound}
+                  aria-label={data.sound ? t.mute : t.enableSound}
+                  aria-pressed={data.sound}
+                >
+                  <SoundIcon enabled={data.sound} />
+                </button>
+                <button
+                  type="button"
+                  className="pitch-control"
+                  onClick={() => setStatsOpen(true)}
+                  aria-label={t.statsLabel}
+                  aria-haspopup="dialog"
+                >
+                  {t.stats}
+                </button>
+              </>
+            )}
+            <FullscreenButton
+              language={data.language}
+              targetRef={matchRef}
+              focusRef={pitchRef}
+              onChange={setFullscreen}
+            />
+          </div>
         </div>
         <div
+          ref={pitchRef}
           className={`stadium-shell ${phase !== 'ready' ? 'is-playing' : ''}`}
           tabIndex={statsOpen ? -1 : 0}
           role="group"
@@ -315,9 +399,31 @@ export default function App() {
             </dd>
           </div>
         </dl>
+        {activeAchievement && (
+          <AchievementToast
+            language={data.language}
+            id={activeAchievement}
+            onDismiss={dismissAchievement}
+          />
+        )}
+        {statsOpen && (
+          <StatsDialog
+            language={data.language}
+            stats={data.stats}
+            achievements={data.achievements}
+            reducedMotion={data.reducedMotion}
+            onReducedMotion={(value) =>
+              setData((previous) => ({ ...previous, reducedMotion: value }))
+            }
+            onReset={() =>
+              setData((previous) => ({ ...previous, stats: emptyStats(), achievements: [] }))
+            }
+            onClose={closeStats}
+          />
+        )}
       </section>
 
-      <div className="instructions-row" id="game-controls">
+      <div className="instructions-row" id="game-controls" inert={fullscreen}>
         <p>
           <svg
             width="17"
@@ -349,7 +455,7 @@ export default function App() {
           {t.storageNotice}
         </p>
       )}
-      <footer className="page-footer">
+      <footer className="page-footer" inert={fullscreen}>
         <span>{t.footer}</span>
         <span>
           {t.madeBy}{' '}
@@ -358,18 +464,6 @@ export default function App() {
           </a>
         </span>
       </footer>
-      {statsOpen && (
-        <StatsDialog
-          language={data.language}
-          stats={data.stats}
-          reducedMotion={data.reducedMotion}
-          onReducedMotion={(value) =>
-            setData((previous) => ({ ...previous, reducedMotion: value }))
-          }
-          onReset={() => setData((previous) => ({ ...previous, stats: emptyStats() }))}
-          onClose={closeStats}
-        />
-      )}
     </main>
   );
 }

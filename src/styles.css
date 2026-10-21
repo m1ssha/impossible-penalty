@@ -991,3 +991,129 @@ html[lang='ru'] .keeper-aside {
     font-size: 8px;
   }
 }
+
+.pitch-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.pitch-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-left: 1px solid #405044;
+  padding: 4px 0 4px 13px;
+  color: #bac9ac;
+  background: transparent;
+  font: 8px/1 var(--mono);
+  letter-spacing: 0.7px;
+  min-height: 27px;
+  white-space: nowrap;
+}
+.pitch-control:hover {
+  color: var(--lime);
+}
+.pitch-control:disabled {
+  opacity: 0.5;
+}
+.fullscreen-control {
+  position: relative;
+  display: flex;
+}
+.fullscreen-feedback {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 12;
+  width: min(260px, calc(100vw - 40px));
+  padding: 12px;
+  border: 1px solid #74815a;
+  background: #132021;
+  font: 10px/1.6 var(--mono);
+  letter-spacing: 0;
+  color: #e4eaca;
+  box-shadow: 4px 4px 0 #081014;
+}
+.match-section.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  width: 100vw;
+  height: 100dvh;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  background: #0b1418;
+  box-shadow: none;
+}
+.match-section.is-fullscreen .pitch-topline,
+.match-section.is-fullscreen .keeper-strip,
+.match-section.is-fullscreen .scoreboard {
+  flex-shrink: 0;
+  width: 100%;
+}
+.match-section.is-fullscreen .stadium-shell {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: auto;
+  background: #081412;
+}
+.match-section.is-fullscreen .scoreboard > div {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.match-section.is-fullscreen .modal-backdrop {
+  position: fixed;
+}
+@media (max-width: 600px) {
+  .pitch-live-label {
+    display: none;
+  }
+  .pitch-tools {
+    gap: 10px;
+  }
+  .pitch-control {
+    font-size: 7px;
+    gap: 5px;
+    padding-left: 9px;
+    letter-spacing: 0.3px;
+  }
+}
+@media (max-height: 520px) {
+  .match-section.is-fullscreen .keeper-strip {
+    min-height: 30px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .match-section.is-fullscreen .keeper-aside {
+    display: none;
+  }
+  .match-section.is-fullscreen .scoreboard > div {
+    padding: 7px 12px;
+  }
+  .match-section.is-fullscreen .scoreboard dt {
+    margin-bottom: 4px;
+    font-size: 7px;
+  }
+  .match-section.is-fullscreen .scoreboard dd {
+    font-size: 24px;
+  }
+  .match-section.is-fullscreen .pitch-topline {
+    height: 31px;
+  }
+}
+body.game-fullscreen-open {
+  overflow: hidden;
+}
+@media (max-width: 480px) {
+  .match-section.is-fullscreen .match-number {
+    display: none;
+  }
+}

@@ -43,3 +43,18 @@ React owns RU/EN choice and persistence, updates html.lang/document.title and ca
 
 `Shot.surprise` additionally supports `'rocket'`: every target above the goal (target.y<0) is a miss with rocket interception, chosen without RNG. Other outside targets remain normal misses. It counts once as a miss and resets save streak; in-goal 10% odds unchanged. Canonical remark: `AIR DEFENCE: ONE. FOOTBALL: ZERO.`
 Art exports extra `rocket`32×16 texture facing right. Scene renders original rocket from offscreen to an intersection of the moving ball at flight t≈.86, while ball stays visible inside canvas. Smoke trail, pixel explosion and shockwave replace continuing ball drift (ball disappears at impact); one resolution callback. New sound callback events `'rocket'|'explosion'` are synthesized by core/audio.ts. Reduced motion reduces smoke/sparks and camera shake; never full-screen flashing. All result/remark text has EN/RU translations, and change of language preserves missile progress. New E2E explicitly aims above goal and checks one miss, explosion/result, return to ready and Russian translation.
+
+## Fullscreen and achievements
+
+FullscreenButton owns native/prefixed Fullscreen API entry and exit, confirms actual
+fullscreen state, and uses an explicitly announced expanded-window fallback when
+the API is absent or rejects entry. The match container includes the canvas, HUD,
+settings controls, statistics dialog and achievement notices. A separate body
+class locks background scrolling without conflicting with dialog inline locks.
+
+Pure core/achievements.ts unlocks five badges from the previous Stats and resolved
+Shot. It never changes outcomes or consumes random numbers. SavedData stores badge
+IDs alongside statistics. Loading validates stats before normalizing badges and
+recovers goal-count milestones from legacy records. Special historical episodes
+are not invented. React queues only newly unlocked notices, not restored badges;
+confirmed reset clears statistics and badges together.
