@@ -9,3 +9,19 @@ Ready idle cycle includes breathing, yawning, clapping and newspaper. Repeated s
 ## Chaos expansion
 
 The keeper occasionally smokes in idle (original pixel cigarette + drifting smoke), grows absurdly during a save, and encounters a fan who runs in and scores. Fan is a rare visual variant of already-selected goals (28% of goals), preserving10% total goal probability for shots aimed inside the frame. Giant animation occurs on18% of saves, without changing result probabilities. Aim outside the goal is a genuine miss, recorded separately, with keeper mockery and no fake save. Misses reset current save streak. All new effects retain reduced-motion support and cannot create an extra shot or bypass the phase gate.
+
+## Helmet and referee
+
+The keeper is an original pixel parody of Petr Čech in his recognizable padded black
+headguard. It remains attached in all idle and save poses, including giant dives.
+A referee waits at the sideline and occasionally runs in to block a shot with his
+body, whistles, then returns to his position. This is a cosmetic subtype of an
+already-selected save: 1/18 of saves, or approximately 5% of all in-frame shots.
+Goals remain independent at 10%, and outside misses never become referee saves.
+The ball meets the referee's chest on its sampled flight trajectory and rebounds
+from the same point. Statistics commit exactly once. The reduced-motion setting
+preserves this essential movement while reducing decorative effects.
+
+For local review only, `?demo=referee` forces the first accepted in-frame shot to
+use this incident. This option is gated by Vite's development mode and is absent
+from the production decision path.

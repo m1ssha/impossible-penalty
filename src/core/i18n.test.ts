@@ -27,6 +27,7 @@ describe('Russian localization', () => {
     'HE IS NOT EVEN ON THE TEAM.',
     'SAME CORNER. SAME RESULT.',
     'AIR DEFENCE: ONE. FOOTBALL: ZERO.',
+    'THE REF IS ON MY SIDE.',
   ])('translates %s', (remark) => expect(translateRemark(remark, 'ru')).toMatch(/[А-ЯЁ]/));
   it('keeps empty thoughts empty', () => expect(translateRemark('', 'ru')).toBe(''));
 });

@@ -2,6 +2,9 @@ import type { Language } from '../core/i18n';
 import type { Shot } from '../core/model';
 
 const copy = {
+  refereeInterference: { en: 'REFEREE INTERFERENCE!', ru: 'СУДЬЯ ВМЕШАЛСЯ!' },
+  refereeSave: { en: 'REF-LEX SAVE.', ru: 'СУДЕЙСКИЙ СЕЙВ.' },
+  refereeAccent: { en: 'THE WHISTLE WAS A DISTRACTION', ru: 'СВИСТОК БЫЛ ОТВЛЕКАЮЩИМ МАНЁВРОМ' },
   airspaceClosed: { en: 'AIRSPACE CLOSED.', ru: 'НЕБО ЗАКРЫТО.' },
   rocketAccent: { en: 'NO BALLS BEYOND THIS POINT', ru: 'МЯЧАМ ТУДА НЕЛЬЗЯ.' },
   airDefence: { en: 'AIR DEFENCE ACTIVE!', ru: 'ПВО НАЧЕКУ!' },
@@ -29,36 +32,40 @@ export function canvasCopy(key: keyof typeof copy, language: Language): string {
 
 export function resultCopy(shot: Shot, language: Language): { title: string; accent: string } {
   const title =
-    shot.surprise === 'rocket'
-      ? 'airspaceClosed'
-      : shot.outcome === 'miss'
-        ? 'wide'
-        : shot.outcome === 'goal'
-          ? shot.surprise === 'fan'
-            ? 'fanGoal'
-            : 'goal'
-          : shot.outcome === 'flash'
-            ? 'flashSave'
-            : shot.outcome === 'showoff'
-              ? 'showoffSave'
-              : shot.surprise === 'giant'
-                ? 'giantSave'
-                : 'save';
+    shot.surprise === 'referee'
+      ? 'refereeSave'
+      : shot.surprise === 'rocket'
+        ? 'airspaceClosed'
+        : shot.outcome === 'miss'
+          ? 'wide'
+          : shot.outcome === 'goal'
+            ? shot.surprise === 'fan'
+              ? 'fanGoal'
+              : 'goal'
+            : shot.outcome === 'flash'
+              ? 'flashSave'
+              : shot.outcome === 'showoff'
+                ? 'showoffSave'
+                : shot.surprise === 'giant'
+                  ? 'giantSave'
+                  : 'save';
   const accent =
-    shot.surprise === 'rocket'
-      ? 'rocketAccent'
-      : shot.outcome === 'miss'
-        ? 'missAccent'
-        : shot.surprise === 'fan'
-          ? 'fanAccent'
-          : shot.surprise === 'giant'
-            ? 'giantAccent'
-            : shot.outcome === 'goal'
-              ? 'goalAccent'
-              : shot.outcome === 'flash'
-                ? 'flashAccent'
-                : shot.outcome === 'showoff'
-                  ? 'showoffAccent'
-                  : 'saveAccent';
+    shot.surprise === 'referee'
+      ? 'refereeAccent'
+      : shot.surprise === 'rocket'
+        ? 'rocketAccent'
+        : shot.outcome === 'miss'
+          ? 'missAccent'
+          : shot.surprise === 'fan'
+            ? 'fanAccent'
+            : shot.surprise === 'giant'
+              ? 'giantAccent'
+              : shot.outcome === 'goal'
+                ? 'goalAccent'
+                : shot.outcome === 'flash'
+                  ? 'flashAccent'
+                  : shot.outcome === 'showoff'
+                    ? 'showoffAccent'
+                    : 'saveAccent';
   return { title: canvasCopy(title, language), accent: canvasCopy(accent, language) };
 }

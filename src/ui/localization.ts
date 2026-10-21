@@ -27,14 +27,16 @@ const en = {
   stadiumError: 'The stadium could not open.',
   reloadHelp: 'Please reload the page to try again.',
   reload: 'RELOAD GAME',
-  keeper: 'THE KEEPER',
-  keeperAside: 'BIG GLOVES. BIGGER EGO.',
+  keeper: 'PETR ČECH',
+  keeperLabel: 'Petr Čech, pixel parody goalkeeper',
+  keeperAside: 'BIG HELMET. BIGGER EGO.',
   phaseReady: 'YOUR SHOT.',
   phaseRunup: 'HERE WE GO.',
   phaseFlight: 'HOLD YOUR BREATH.',
   phaseResult: 'ONE MORE?',
   announceMiss: 'Miss! Your shot went outside the goal. Try aiming inside the net.',
   announceRocket: 'Miss! A rocket intercepted the ball.',
+  announceReferee: 'Saved! The referee interfered and helped the keeper.',
   announceFan: 'Goal! A fan invaded the pitch and scored for you.',
   announceGiant: 'Saved! The keeper grew gigantic to stop your shot.',
   announceGoal: 'Goal! You beat the keeper.',
@@ -104,14 +106,16 @@ const ru: UiText = {
   stadiumError: 'Стадион не открылся.',
   reloadHelp: 'Обновите страницу и попробуйте снова.',
   reload: 'ОБНОВИТЬ ИГРУ',
-  keeper: 'ВРАТАРЬ',
-  keeperAside: 'БОЛЬШИЕ ПЕРЧАТКИ. ЕЩЁ БОЛЬШЕ ЭГО.',
+  keeper: 'ПЕТР ЧЕХ',
+  keeperLabel: 'Пётр Чех, пиксельная пародия на вратаря',
+  keeperAside: 'КРЕПКИЙ ШЛЕМ. ЕЩЁ КРЕПЧЕ ЭГО.',
   phaseReady: 'ТВОЙ УДАР.',
   phaseRunup: 'ПОЕХАЛИ.',
   phaseFlight: 'ЗАТАИ ДЫХАНИЕ.',
   phaseResult: 'ЕЩЁ РАЗ?',
   announceMiss: 'Мимо! Мяч прошёл за пределами ворот. Попробуй прицелиться в створ.',
   announceRocket: 'Мимо! Ракета перехватила мяч.',
+  announceReferee: 'Сейв! Судья вмешался и помог вратарю.',
   announceFan: 'Гол! На поле выбежал болельщик и забил за тебя.',
   announceGiant: 'Сейв! Вратарь стал гигантом и отбил твой удар.',
   announceGoal: 'Гол! Ты обыграл вратаря.',
@@ -157,6 +161,7 @@ export const uiText: Record<Language, UiText> = { en, ru };
 export type AnnouncementKey =
   | 'announceMiss'
   | 'announceRocket'
+  | 'announceReferee'
   | 'announceFan'
   | 'announceGiant'
   | 'announceGoal'

@@ -8,6 +8,8 @@ import { canvasCopy, resultCopy } from './localization';
 const GOAL = { x: 226, y: 154, width: 508, height: 202 };
 const BALL = { x: 492, y: 527 };
 const KEEPER = { x: 480, y: 365 };
+const REFEREE = { x: 840, y: 465 };
+const REFEREE_CONTACT_T = 0.62;
 const RUNUP_MS = 650;
 const FLIGHT_MS = 640;
 const CONTACT_T = 0.84;
@@ -48,6 +50,9 @@ export class PenaltyScene extends Phaser.Scene {
   private keeper!: Phaser.GameObjects.Image;
   private striker!: Phaser.GameObjects.Image;
   private fan!: Phaser.GameObjects.Image;
+  private referee!: Phaser.GameObjects.Image;
+  private refereePreviewPending =
+    import.meta.env.DEV && new URLSearchParams(window.location.search).get('demo') === 'referee';
   private rocket!: Phaser.GameObjects.Image;
   private rocketLaunched = false;
   private rocketSmokeTime = 0;
@@ -73,7 +78,7 @@ export class PenaltyScene extends Phaser.Scene {
   private direction = 1;
   private particles: Particle[] = [];
   private trail: { x: number; y: number; scale: number }[] = [];
-  private rebound = { x: 0, y: 0, vx: 0, vy: 0 };
+  private rebound = { x: 0, y: 0, vx: 0, vy: 0, scale: 1 };
   private celebration!: Phaser.GameObjects.Text;
   private resultAccent!: Phaser.GameObjects.Text;
   private idlePose = '';
@@ -117,6 +122,11 @@ export class PenaltyScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(9)
       .setVisible(false);
+    this.referee = this.add
+      .image(REFEREE.x, REFEREE.y, 'referee-idle')
+      .setOrigin(0.5, 1)
+      .setScale(2.5)
+      .setDepth(4);
     this.rocket = this.add
       .image(-100, 420, 'rocket')
       .setScale(ROCKET_SCALE)
@@ -216,7 +226,15 @@ export class PenaltyScene extends Phaser.Scene {
     this.rocketLaunched = false;
     this.rocketSmokeTime = 0;
     this.rocket.setVisible(false);
-    this.shot = planShot({ ...this.aim }, this.history, Math.random, this.shotSequence++);
+    const insideGoal = this.aim.x >= 0 && this.aim.x <= 1 && this.aim.y >= 0 && this.aim.y <= 1;
+    const preview = this.refereePreviewPending && insideGoal;
+    this.shot = planShot(
+      { ...this.aim },
+      this.history,
+      preview ? () => 0.01 : Math.random,
+      this.shotSequence++,
+    );
+    if (preview) this.refereePreviewPending = false;
     if (this.shot.outcome !== 'miss') this.history = [...this.history, { ...this.aim }].slice(-6);
     this.fan
       .setPosition(-70, 548)
@@ -230,7 +248,9 @@ export class PenaltyScene extends Phaser.Scene {
       .setAlpha(1);
     this.keeperStart = { x: this.keeper.x, y: this.keeper.y };
     this.direction = this.aim.x < 0.5 ? -1 : 1;
-    this.contact = this.flightPosition(CONTACT_T);
+    this.contact = this.flightPosition(
+      this.shot.surprise === 'referee' ? REFEREE_CONTACT_T : CONTACT_T,
+    );
     this.rocketImpact = this.flightPosition(ROCKET_CONTACT_T);
     this.diveRotation = this.direction * (0.9 + (1 - this.aim.y) * 0.25);
     this.keeper.setFlipX(this.direction < 0);
@@ -359,6 +379,11 @@ export class PenaltyScene extends Phaser.Scene {
   }
 
   private updateIdle(dt: number): void {
+    this.referee
+      .setTexture('referee-idle')
+      .setPosition(REFEREE.x, REFEREE.y)
+      .setRotation(0)
+      .setAlpha(1);
     const cycle = Math.floor(this.totalTime / 3900);
     const within = this.totalTime % 3900;
     if (cycle !== this.lastIdleCycle) {
@@ -418,7 +443,15 @@ export class PenaltyScene extends Phaser.Scene {
   private updateRunup(): void {
     if (!this.shot) return;
     const fanShot = this.shot.surprise === 'fan';
+    const refereeShot = this.shot.surprise === 'referee';
     const t = clamp(this.phaseTime / (fanShot ? 1100 : RUNUP_MS), 0, 1);
+    if (refereeShot) {
+      this.updateRefereeRun(this.phaseTime);
+      if (t > 0.28)
+        this.incidentBanner
+          .setVisible(true)
+          .setText(canvasCopy('refereeInterference', this.language));
+    }
     this.striker.setTexture(
       t > 0.77 ? 'striker-kick' : Math.floor(t * 9) % 2 ? 'striker-run' : 'striker-idle',
     );
@@ -442,7 +475,8 @@ export class PenaltyScene extends Phaser.Scene {
         .setRotation(0);
     }
     this.keeper.setTexture('keeper-idle').setRotation(0);
-    const anticipation = this.shot.outcome === 'predictor' ? ease((t - 0.35) / 0.65) : 0;
+    const anticipation =
+      !refereeShot && this.shot.outcome === 'predictor' ? ease((t - 0.35) / 0.65) : 0;
     this.keeper.setPosition(
       this.keeperStart.x + this.direction * anticipation * 21,
       KEEPER.y + anticipation * 5,
@@ -463,11 +497,14 @@ export class PenaltyScene extends Phaser.Scene {
     const t = clamp(this.phaseTime / FLIGHT_MS, 0, 1);
     const miss = this.shot.outcome === 'miss';
     const rocketShot = this.shot.surprise === 'rocket';
-    const limit = rocketShot
-      ? ROCKET_CONTACT_T
-      : this.shot.outcome === 'goal' || miss
-        ? 1
-        : CONTACT_T;
+    const refereeShot = this.shot.surprise === 'referee';
+    const limit = refereeShot
+      ? REFEREE_CONTACT_T
+      : rocketShot
+        ? ROCKET_CONTACT_T
+        : this.shot.outcome === 'goal' || miss
+          ? 1
+          : CONTACT_T;
     const ballT = Math.min(t, limit);
     const pos = this.flightPosition(ballT);
     this.ball
@@ -485,6 +522,18 @@ export class PenaltyScene extends Phaser.Scene {
     if (!this.reducedMotion) {
       this.trail.push({ x: pos.x, y: pos.y, scale: this.ball.scaleX });
       if (this.trail.length > 7) this.trail.shift();
+    }
+    if (refereeShot) {
+      this.updateRefereeRun(RUNUP_MS + Math.min(t, REFEREE_CONTACT_T) * FLIGHT_MS);
+      this.keeper
+        .setPosition(KEEPER.x, KEEPER.y)
+        .setScale(2.5)
+        .setRotation(0)
+        .setFlipX(false)
+        .setTexture(t > 0.15 ? 'keeper-clap' : 'keeper-idle');
+      this.striker.setTexture(t < 0.28 ? 'striker-kick' : 'striker-idle').setRotation(0);
+      if (t >= limit) this.resolve();
+      return;
     }
     if (miss) {
       if (rocketShot) this.updateRocket(t);
@@ -545,6 +594,54 @@ export class PenaltyScene extends Phaser.Scene {
     if (t >= limit) this.resolve();
   }
 
+  private updateRefereeRun(roundTime: number): void {
+    const endTime = RUNUP_MS + REFEREE_CONTACT_T * FLIGHT_MS;
+    const progress = clamp((roundTime - 180) / (endTime - 180), 0, 1);
+    const movement = progress * progress * progress;
+    const running = movement > 0 && movement < 1;
+    const contactFoot = this.contact.y + 60;
+    const groundY = Math.max(365, contactFoot);
+    const leap = (groundY - contactFoot) * Math.pow(progress, 6);
+    this.referee.setPosition(
+      lerp(REFEREE.x, this.contact.x, movement),
+      lerp(REFEREE.y, groundY, movement) - leap,
+    );
+    this.referee.setRotation(this.reducedMotion || !running ? 0 : Math.sin(roundTime / 55) * 0.045);
+    this.referee.setTexture(
+      progress >= 1 || (leap > 8 && progress > 0.91)
+        ? 'referee-block'
+        : running && Math.floor(roundTime / 95) % 2 === 0
+          ? 'referee-run'
+          : 'referee-idle',
+    );
+  }
+
+  private updateRefereeReturn(seconds: number): void {
+    const delay = this.reducedMotion ? 0.35 : 0.55;
+    const duration = this.reducedMotion ? 0.55 : 0.7;
+    const progress = clamp((seconds - delay) / duration, 0, 1);
+    const movement = progress * progress * (3 - 2 * progress);
+    const contactFoot = this.contact.y + 60;
+    const landing = clamp(seconds / 0.28, 0, 1);
+    const landedY = lerp(contactFoot, Math.max(365, contactFoot), landing * landing);
+    this.referee.setPosition(
+      lerp(this.contact.x, REFEREE.x, movement),
+      lerp(landedY, REFEREE.y, movement),
+    );
+    this.referee.setRotation(
+      this.reducedMotion || progress === 0 || progress === 1 ? 0 : Math.sin(seconds * 24) * 0.04,
+    );
+    this.referee.setTexture(
+      seconds < 0.14
+        ? 'referee-block'
+        : progress === 0 || progress === 1
+          ? 'referee-whistle'
+          : Math.floor(seconds * 11) % 2 === 0
+            ? 'referee-run'
+            : 'referee-idle',
+    );
+  }
+
   private updateRocket(t: number): void {
     if (t < ROCKET_LAUNCH_T) return;
     if (!this.rocketLaunched) {
@@ -593,11 +690,18 @@ export class PenaltyScene extends Phaser.Scene {
     const isGoal = this.shot.outcome === 'goal';
     const miss = this.shot.outcome === 'miss';
     const rocketShot = this.shot.surprise === 'rocket';
+    const refereeShot = this.shot.surprise === 'referee';
     const point = this.flightPosition(
-      rocketShot ? ROCKET_CONTACT_T : isGoal || miss ? 1 : CONTACT_T,
+      refereeShot
+        ? REFEREE_CONTACT_T
+        : rocketShot
+          ? ROCKET_CONTACT_T
+          : isGoal || miss
+            ? 1
+            : CONTACT_T,
     );
     this.ball.setPosition(point.x, point.y);
-    if (!isGoal && !miss)
+    if (!isGoal && !miss && !refereeShot)
       this.keeper.setPosition(this.diveEnd.x, this.diveEnd.y).setRotation(this.diveRotation);
     this.landingStart = {
       x: this.keeper.x,
@@ -610,11 +714,15 @@ export class PenaltyScene extends Phaser.Scene {
       y: point.y,
       vx: this.direction * (130 + Math.random() * 65),
       vy: -130,
+      scale: this.ball.scaleX,
     };
     this.phase = 'result';
     this.phaseTime = 0;
     this.callbacks.onShot(this.shot);
     if (!miss) this.callbacks.onSound(isGoal ? 'goal' : 'save');
+    if (refereeShot) this.callbacks.onSound('whistle');
+    // The result thought replaces the warning rather than covering its text.
+    if (refereeShot) this.incidentBanner.setVisible(false);
     if (rocketShot) {
       this.rocket.setVisible(false);
       this.ball.setVisible(false);
@@ -741,21 +849,32 @@ export class PenaltyScene extends Phaser.Scene {
       this.ball
         .setPosition(this.rebound.x, this.rebound.y)
         .setRotation(seconds * 12)
-        .setScale(lerp(1, 1.4, Math.min(seconds, 1)));
-      // Keeper lands, then gets back up for a smug final pose.
-      const landing = ease(seconds / 0.44);
-      const rise = ease((seconds - 0.5) / 0.4);
-      this.keeper.setPosition(
-        lerp(this.diveEnd.x, KEEPER.x, rise),
-        lerp(lerp(this.diveEnd.y, 397, landing), KEEPER.y, rise),
-      );
-      this.keeper
-        .setRotation(this.diveRotation * (1 - rise))
-        .setScale(lerp(this.landingStart.scale, 2.5, ease(seconds / 0.75)));
-      if (rise > 0.85)
+        .setScale(lerp(this.rebound.scale, 1.4, Math.min(seconds, 1)));
+      if (this.shot.surprise === 'referee') {
+        this.updateRefereeReturn(seconds);
         this.keeper
-          .setTexture(this.shot.outcome === 'showoff' ? 'keeper-clap' : 'keeper-idle')
-          .setFlipX(false);
+          .setPosition(KEEPER.x, KEEPER.y)
+          .setRotation(0)
+          .setScale(2.5)
+          .setTexture(
+            this.reducedMotion || Math.floor(seconds * 7) % 2 === 0 ? 'keeper-clap' : 'keeper-idle',
+          );
+      } else {
+        // Keeper lands, then gets back up for a smug final pose.
+        const landing = ease(seconds / 0.44);
+        const rise = ease((seconds - 0.5) / 0.4);
+        this.keeper.setPosition(
+          lerp(this.diveEnd.x, KEEPER.x, rise),
+          lerp(lerp(this.diveEnd.y, 397, landing), KEEPER.y, rise),
+        );
+        this.keeper
+          .setRotation(this.diveRotation * (1 - rise))
+          .setScale(lerp(this.landingStart.scale, 2.5, ease(seconds / 0.75)));
+        if (rise > 0.85)
+          this.keeper
+            .setTexture(this.shot.outcome === 'showoff' ? 'keeper-clap' : 'keeper-idle')
+            .setFlipX(false);
+      }
     }
     if (this.phaseTime >= duration) this.resetRound();
   }
@@ -767,6 +886,11 @@ export class PenaltyScene extends Phaser.Scene {
     this.particles = [];
     this.trail = [];
     this.fan.setVisible(false).setAlpha(1);
+    this.referee
+      .setPosition(REFEREE.x, REFEREE.y)
+      .setTexture('referee-idle')
+      .setRotation(0)
+      .setAlpha(1);
     this.rocket.setVisible(false);
     this.rocketLaunched = false;
     this.rocketSmokeTime = 0;
@@ -806,6 +930,8 @@ export class PenaltyScene extends Phaser.Scene {
       this.incidentBanner.setText(canvasCopy('regulationSize', this.language));
     else if (this.shot?.surprise === 'rocket')
       this.incidentBanner.setText(canvasCopy('airDefence', this.language));
+    else if (this.shot?.surprise === 'referee')
+      this.incidentBanner.setText(canvasCopy('refereeInterference', this.language));
   }
 
   private setThought(text: string): void {
@@ -922,6 +1048,7 @@ export class PenaltyScene extends Phaser.Scene {
     );
     g.fillEllipse(this.striker.x, this.shot?.surprise === 'fan' ? 562 : 550, 62, 15);
     if (this.fan.visible) g.fillEllipse(this.fan.x, 548, 58, 13);
+    g.fillEllipse(this.referee.x, Math.max(this.referee.y, 365), 52, 12);
     const progress =
       this.phase === 'flight'
         ? clamp(this.phaseTime / FLIGHT_MS, 0, 1)

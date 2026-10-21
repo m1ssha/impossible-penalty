@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import type { Language } from '../core/i18n';
+import type { SoundEvent } from '../core/audio';
 import type { Phase, Shot } from '../core/model';
 import { PenaltyScene } from './PenaltyScene';
 
 export interface GameCallbacks {
   onPhase(phase: Phase): void;
   onShot(shot: Shot): void;
-  onSound(event: 'kick' | 'save' | 'goal' | 'hover' | 'rocket' | 'explosion'): void;
+  onSound(event: SoundEvent): void;
   onRemark(text: string): void;
 }
 

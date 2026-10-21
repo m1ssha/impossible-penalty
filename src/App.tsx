@@ -64,17 +64,19 @@ export default function App() {
         },
         onShot: (shot) => {
           setAnnouncement(
-            shot.surprise === 'rocket'
-              ? 'announceRocket'
-              : shot.outcome === 'miss'
-                ? 'announceMiss'
-                : shot.surprise === 'fan'
-                  ? 'announceFan'
-                  : shot.surprise === 'giant'
-                    ? 'announceGiant'
-                    : shot.outcome === 'goal'
-                      ? 'announceGoal'
-                      : 'announceSave',
+            shot.surprise === 'referee'
+              ? 'announceReferee'
+              : shot.surprise === 'rocket'
+                ? 'announceRocket'
+                : shot.outcome === 'miss'
+                  ? 'announceMiss'
+                  : shot.surprise === 'fan'
+                    ? 'announceFan'
+                    : shot.surprise === 'giant'
+                      ? 'announceGiant'
+                      : shot.outcome === 'goal'
+                        ? 'announceGoal'
+                        : 'announceSave',
           );
           setData((previous) => ({ ...previous, stats: recordShot(previous.stats, shot.outcome) }));
         },
@@ -269,7 +271,7 @@ export default function App() {
         <div className="keeper-strip">
           <div className="keeper-identity">
             <span className="keeper-dot" />
-            <span>{t.keeper}</span>
+            <span aria-label={t.keeperLabel}>{t.keeper}</span>
             <span className="keeper-number">01</span>
           </div>
           <p className="keeper-remark sr-only" aria-live="polite" aria-atomic="true">

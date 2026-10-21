@@ -31,6 +31,7 @@ const remarks: Record<string, string> = {
   'SAME CORNER. SAME RESULT.': 'ТОТ ЖЕ УГОЛ. ТОТ ЖЕ РЕЗУЛЬТАТ.',
   'HE IS NOT EVEN ON THE TEAM.': 'ОН ДАЖЕ НЕ ИЗ КОМАНДЫ!',
   'AIR DEFENCE: ONE. FOOTBALL: ZERO.': 'ПВО: ОДИН. ФУТБОЛ: НОЛЬ.',
+  'THE REF IS ON MY SIDE.': 'СУДЬЯ ИГРАЕТ ЗА МЕНЯ.',
 };
 export function translateRemark(canonicalEnglish: string, language: Language): string {
   return language === 'ru' ? (remarks[canonicalEnglish] ?? canonicalEnglish) : canonicalEnglish;

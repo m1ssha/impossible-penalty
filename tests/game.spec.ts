@@ -185,17 +185,28 @@ for (const surprise of [
     expected: [1, 1, 0, 0, 0],
     announcement: 'fan invaded the pitch',
   },
+  {
+    label: 'referee interference',
+    random: 0.1,
+    cosmetic: 0.01,
+    expected: [1, 0, 1, 0, 1],
+    announcement: 'referee interfered',
+  },
 ]) {
   test(`plays a forced ${surprise.label} without adding a second shot`, async ({
     page,
   }, testInfo) => {
-    await forceSurprise(page, surprise.random, 0.1);
+    await forceSurprise(page, surprise.random, surprise.cosmetic ?? 0.1);
     await openGame(page);
     await aimAndShoot(page, 0.85, 0.2);
     await expect.poll(() => score(page)).toEqual(surprise.expected);
     await expect(page.locator('.shot-announcement')).toContainText(surprise.announcement);
     if (surprise.label === 'fan invasion goal')
       await expect(page.locator('.keeper-remark')).toContainText('HE IS NOT EVEN ON THE TEAM.');
+    if (surprise.label === 'referee interference') {
+      await expect(page.locator('.keeper-remark')).toContainText('THE REF IS ON MY SIDE.');
+      await expect(page.locator('.keeper-identity')).toContainText('PETR ČECH');
+    }
     if (testInfo.project.name === 'chromium')
       await page.screenshot({
         path: `test-results/${surprise.label.replaceAll(' ', '-')}.png`,
@@ -203,6 +214,13 @@ for (const surprise of [
       });
     await ready(page);
     await expect.poll(() => score(page)).toEqual(surprise.expected);
+    if (surprise.label === 'referee interference') {
+      // The referee must return to the sideline and allow a second, opposite shot.
+      await aimAndShoot(page, 0.05, 0.9);
+      await expect.poll(() => score(page)).toEqual([2, 0, 2, 0, 2]);
+      await ready(page);
+      await expect.poll(() => score(page)).toEqual([2, 0, 2, 0, 2]);
+    }
   });
 }
 

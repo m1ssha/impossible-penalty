@@ -17,7 +17,7 @@ export interface Shot {
   target: Point;
   outcome: Outcome;
   remark: string;
-  surprise: 'none' | 'giant' | 'fan' | 'rocket';
+  surprise: 'none' | 'giant' | 'fan' | 'rocket' | 'referee';
 }
 export function chooseOutcome(random: () => number = Math.random): Exclude<Outcome, 'miss'> {
   const value = random();
@@ -72,15 +72,18 @@ export function planShot(
   const outside = point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1;
   const outcome = outside ? 'miss' : chooseOutcome(random);
   // This draw chooses presentation only; it cannot alter the already selected result.
+  // 90% saves × 1/18 referee variants = 5% of all in-frame attempts.
   const cosmetic = outcome === 'miss' ? 1 : random();
   const surprise: Shot['surprise'] =
     outcome === 'miss' && point.y < 0
       ? 'rocket'
       : outcome === 'goal' && cosmetic < 0.28
         ? 'fan'
-        : outcome !== 'goal' && outcome !== 'miss' && cosmetic < 0.18
-          ? 'giant'
-          : 'none';
+        : outcome !== 'goal' && outcome !== 'miss' && cosmetic < 1 / 18
+          ? 'referee'
+          : outcome !== 'goal' && outcome !== 'miss' && cosmetic < 1 / 18 + 0.18
+            ? 'giant'
+            : 'none';
   const repeated =
     history.length >= 3 &&
     history
@@ -99,7 +102,9 @@ export function planShot(
         ? 'HE IS NOT EVEN ON THE TEAM.'
         : surprise === 'rocket'
           ? 'AIR DEFENCE: ONE. FOOTBALL: ZERO.'
-          : remark,
+          : surprise === 'referee'
+            ? 'THE REF IS ON MY SIDE.'
+            : remark,
     surprise,
   };
 }

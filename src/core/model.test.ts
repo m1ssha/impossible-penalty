@@ -91,17 +91,22 @@ describe('independent outcome model', () => {
     [0.95, 0.1, 'goal', 'fan'],
     [0.95, 0.8, 'goal', 'none'],
     [0.1, 0.8, 'predictor', 'none'],
+    [0.1, 0.01, 'predictor', 'referee'],
+    [0.6, 0.01, 'flash', 'referee'],
+    [0.8, 0.01, 'showoff', 'referee'],
+    [0.95, 0.01, 'goal', 'fan'],
   ] as const)('selects cosmetic %s/%s independently', (result, cosmetic, outcome, surprise) => {
     const values = [result, cosmetic];
     const shot = planShot({ x: 0.5, y: 0.5 }, [], () => values.shift()!);
     expect(shot.outcome).toBe(outcome);
     expect(shot.surprise).toBe(surprise);
   });
-  it('keeps 10% in-goal odds when giant and fan effects are enabled', () => {
+  it('keeps 10% goals and 5% referee incidents over 200,000 reproducible shots', () => {
     const random = seeded(0x1a2b3c4d);
     let goals = 0;
     let fans = 0;
     let giants = 0;
+    let referees = 0;
     for (let i = 0; i < 200000; i++) {
       const shot = planShot({ x: 0.2, y: 0.3 }, [], random, i);
       if (shot.outcome === 'goal') goals++;
@@ -113,6 +118,10 @@ describe('independent outcome model', () => {
         giants++;
         expect(['goal', 'miss']).not.toContain(shot.outcome);
       }
+      if (shot.surprise === 'referee') {
+        referees++;
+        expect(['goal', 'miss']).not.toContain(shot.outcome);
+      }
     }
     expect(goals / 200000).toBeGreaterThan(0.096);
     expect(goals / 200000).toBeLessThan(0.104);
@@ -120,6 +129,23 @@ describe('independent outcome model', () => {
     expect(fans / goals).toBeLessThan(0.3);
     expect(giants / (200000 - goals)).toBeGreaterThan(0.17);
     expect(giants / (200000 - goals)).toBeLessThan(0.19);
+    expect(referees / 200000).toBeGreaterThan(0.047);
+    expect(referees / 200000).toBeLessThan(0.053);
+  });
+  it('referee intervention records one save and never changes an outside miss', () => {
+    const shot = planShot({ x: 0, y: 1 }, [], () => 0.01);
+    expect(shot.surprise).toBe('referee');
+    expect(shot.remark).toBe('THE REF IS ON MY SIDE.');
+    expect(recordShot(emptyStats(), shot.outcome)).toEqual({
+      shots: 1,
+      goals: 0,
+      saves: 1,
+      misses: 0,
+      streak: 1,
+      bestStreak: 1,
+    });
+    expect(planShot({ x: 1.2, y: 0.4 }, [], () => 0.01).surprise).toBe('none');
+    expect(planShot({ x: 0.5, y: -0.4 }, [], () => 0.01).surprise).toBe('rocket');
   });
   it('sky shots trigger rocket interception and still count as one miss', () => {
     let draws = 0;

@@ -1,4 +1,4 @@
-export type SoundEvent = 'kick' | 'save' | 'goal' | 'hover' | 'rocket' | 'explosion';
+export type SoundEvent = 'kick' | 'save' | 'goal' | 'hover' | 'rocket' | 'explosion' | 'whistle';
 /** Original synthesized arcade sound: no downloads, codecs or third-party samples. */
 export class GameAudio {
   private context: AudioContext | null = null;
@@ -123,6 +123,11 @@ export class GameAudio {
       this.noise(t, 0.65, 0.7, 2400);
       this.tone(90, t, 0.45, 0.6, 'sine', 22);
       this.tone(42, t + 0.05, 0.35, 0.4, 'triangle', 18);
+    }
+    if (event === 'whistle') {
+      this.tone(2460, t, 0.16, 0.16, 'sine', 2800);
+      this.tone(2790, t + 0.01, 0.13, 0.08, 'sine', 2650);
+      this.tone(2600, t + 0.22, 0.26, 0.14, 'sine', 2900);
     }
     if (event === 'hover') this.tone(700, t, 0.05, 0.05);
   }
