@@ -7,3 +7,10 @@ playwright-report/
 test-results/
 .DS_Store
 .env
+
+# Deployment credentials and private target settings
+.env.*
+!.env.example
+deployment/*.local.*
+*.pem
+*.key

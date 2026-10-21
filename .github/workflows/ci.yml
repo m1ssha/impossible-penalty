@@ -20,6 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      - run: bash -n deployment/activate-image.sh deployment/ssh-command.sh
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build

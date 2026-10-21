@@ -126,7 +126,7 @@ npm run preview
 
 Открывать `dist/index.html` двойным щелчком через `file://` не нужно: используйте HTTP-сервер, например `npm run preview`, или свой хостинг. Маршрутизации на сервере, API, базы данных и переменных окружения у проекта нет. `.env` не требуется.
 
-**GitHub Pages и другой хостинг в этом проекте не настраиваются и не публикуются.** GitHub Actions выполняет только проверки качества.
+GitHub Actions выполняет проверки качества и автоматическое обновление собственного сервера после успешных проверок main. Доступ и адрес сайта хранятся в Secrets окружения `production`; GitHub Pages не используется. Подробности контейнера, SSH-доступа и отката — в [deployment/README.md](deployment/README.md).
 
 ## Настройка автора и внешнего вида
 
@@ -172,6 +172,8 @@ src/
 docs/                     Продукт, механики, архитектура, арт и тестирование
 tests/                    Автоматические тесты
 .github/workflows/ci.yml   Проверки GitHub Actions
+.github/workflows/cd.yml   Автоматический деплой после CI
+deployment/               nginx, серверные скрипты и инструкция CD
 ```
 
 Рабочие документы: [PRODUCT](docs/PRODUCT.md), [GAME_DESIGN](docs/GAME_DESIGN.md), [ARCHITECTURE](docs/ARCHITECTURE.md), [ART_DIRECTION](docs/ART_DIRECTION.md), [TESTING](docs/TESTING.md).

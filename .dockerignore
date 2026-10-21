@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+dist
+playwright-report
+test-results
+docs
+.env
+.env.*
+*.local
+*.tsbuildinfo
+deployment/*.local.*
+deployment/*.tar*
+deployment/*.log
+*.pem
+*.key
